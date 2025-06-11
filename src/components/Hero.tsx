@@ -1,70 +1,71 @@
-import React from 'react';
-import { Terminal, Cloud, Database, GitBranch } from 'lucide-react';
+
+import React from "react";
+import { Mail, Github, Linkedin, Terminal } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white relative">
-      {/* Background Image (Doodle) */}
-      <div
-        className="absolute inset-0 bg-cover bg-center opacity-45"
-        style={{
-          backgroundImage: 'url(https://github-sharathkumar.s3.us-east-1.amazonaws.com/background.jpg)',
-        }}
-      ></div>
-      
-      {/* Content Section */}
-      <div className="container mx-auto px-6 relative z-10">
-        <div className="flex flex-col items-center text-center">
-          {/* Profile Image and Info */}
-          <div className="relative mb-8">
-            <img
+      <section
+          style={{
+            backgroundImage: "url('https://github-sharathkumar.s3.us-east-1.amazonaws.com/pexels-pixabay-315938.jpg')",
+            backgroundSize: "cover",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "center"
+          }}
+          className="pt-32 pb-20 bg-gradient-to-b from-gray-900 to-gray-800 relative"
+      >
+        {/* Optional overlay for contrast */}
+        <div className="absolute inset-0 bg-black/30 z-0"></div>
+
+        <div className="container mx-auto px-6 flex flex-col items-center text-center relative z-10">
+          <img
               src="https://github-sharathkumar.s3.us-east-1.amazonaws.com/profile_image.jpg?auto=format&fit=crop&q=80&w=200&h=200"
-              alt="Dinesh Kumar A"
-              className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-            />
-            <div className="absolute -bottom-2 -right-2 bg-indigo-600 rounded-full p-2">
-              <Terminal className="h-5 w-5 text-white" />
-            </div>
-          </div>
-          <h1 className="text-4xl font-bold mb-2">Sharath Kumar</h1>
-          <h2 className="text-2xl text-indigo-600 mb-4">Site Reliability Engineer</h2>
-          <p className="text-xl text-gray-900 mb-8 max-w-2xl">
-            Passionate about building scalable and reliable systems. Experienced in cloud-native technologies, infrastructure automation, and DevOps practices.
+              alt="Sharath Kumar"
+              className="w-32 h-32 rounded-full border-4 border-white shadow-lg mx-auto mb-4"
+          />
+          <h1 className="text-4xl font-bold text-white">Sharath Kumar</h1>
+          <p className="text-xl font-mono font-bold text-yellow-400">Site Reliability Engineer</p>
+          <p className="mt-4 max-w-2xl text-gray-200 mx-auto">
+            Passionate about building scalable and reliable systems. Experienced in cloud-native technologies,
+            infrastructure automation, and DevOps practices.
           </p>
-
-          {/* Skills Section */}
-          <div className="flex items-center space-x-6 mb-12">
-            <div className="flex items-center space-x-2">
-              <Cloud className="h-5 w-5 text-indigo-600" />
-              <span>Cloud Native</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Database className="h-5 w-5 text-indigo-600" />
-              <span>Infrastructure</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <GitBranch className="h-5 w-5 text-indigo-600" />
-              <span>DevOps</span>
-            </div>
+          <div className="mt-4 flex justify-center gap-6 text-gray-200">
+          <span className="flex items-center gap-2">
+            <CloudIcon /> Cloud Native
+          </span>
+            <span className="flex items-center gap-2">
+            <ServerIcon /> Infrastructure
+          </span>
+            <span className="flex items-center gap-2">
+            <ZapIcon /> DevOps
+          </span>
           </div>
-
-          {/* Call to Action */}
-          <div className="flex space-x-4">
+          <div className="mt-8 flex justify-center gap-4">
             <a
-              href="#contact"
-              className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors"
+                href="#contact"
+                className="px-6 py-3 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
             >
               Contact Me
             </a>
             <a
-              href="#projects"
-              className="border border-indigo-600 text-indigo-600 px-6 py-3 rounded-lg hover:bg-indigo-50 transition-colors"
+                href="#projects"
+                className="px-6 py-3 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
             >
               View Projects
             </a>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
   );
+}
+
+function CloudIcon() {
+  return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 15a4 4 0 0 1 4-4h1a3 3 0 1 1 6 0h1a4 4 0 0 1 0 8H7a4 4 0 0 1-4-4z" /></svg>;
+}
+
+function ServerIcon() {
+  return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z" /></svg>;
+}
+
+function ZapIcon() {
+  return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9z" /></svg>;
 }

@@ -1,72 +1,76 @@
-import React from 'react';
-import { Github, ExternalLink } from 'lucide-react';
+import React from "react";
+import { Github, ExternalLink } from "lucide-react";
 
 const projects = [
   {
     title: "Kubernetes Monitoring Stack",
-    description: "Implemented a comprehensive monitoring solution using Prometheus, Grafana, and AlertManager for a large-scale Kubernetes cluster.",
+    description:
+        "Implemented a comprehensive monitoring solution using Prometheus, Grafana, and AlertManager for a large-scale Kubernetes cluster.",
     tags: ["Kubernetes", "Prometheus", "Grafana", "Go"],
-    github: "#",
-    demo: "#"
+    code: "#",
+    demo: "#",
   },
   {
     title: "Infrastructure Automation Framework",
-    description: "Developed a custom automation framework for infrastructure provisioning and configuration management using Terraform and Python.",
+    description:
+        "Developed a custom automation framework for infrastructure provisioning and configuration management using Terraform and Python.",
     tags: ["Terraform", "Python", "AWS", "Infrastructure as Code"],
-    github: "#",
-    demo: "#"
+    code: "#",
+    demo: "#",
   },
   {
     title: "CI/CD Pipeline Optimization",
-    description: "Redesigned and optimized CI/CD pipelines, reducing build times by 60% and implementing automated testing and deployment.",
+    description:
+        "Redesigned and optimized CI/CD pipelines, reducing build times by 60% and implementing automated testing and deployment.",
     tags: ["Jenkins", "Docker", "GitLab", "Shell Scripting"],
-    github: "#",
-    demo: "#"
-  }
+    code: "#",
+    demo: "#",
+  },
 ];
 
 export function Projects() {
   return (
-    <section id="projects" className="py-20">
-      <div className="container mx-auto px-6">
-        <h2 className="text-3xl font-bold text-center mb-12">Featured Projects</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {projects.map((project) => (
-            <div key={project.title} className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-6">
-                <h3 className="font-bold text-xl mb-3">{project.title}</h3>
-                <p className="text-gray-600 mb-4">{project.description}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {project.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-indigo-100 text-indigo-800 text-sm px-3 py-1 rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+      <section id="projects" className="py-20 bg-gray-100 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">Featured Projects</h2>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {projects.map((project, index) => (
+                <div
+                    key={index}
+                    className="relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-lg p-6 overflow-hidden"
+                >
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-0 left-1/2 w-2/3 h-24 -translate-x-1/2 bg-white/20 blur-xl opacity-10 rounded-full" />
+                    <div className="absolute bottom-0 right-1/2 w-1/2 h-20 translate-x-1/2 bg-white/10 blur-2xl opacity-10 rounded-full" />
+                  </div>
+
+                  <h3 className="text-xl font-semibold mb-2 text-white relative z-10">{project.title}</h3>
+                  <p className="text-gray-300 text-sm mb-4 relative z-10">{project.description}</p>
+
+                  <div className="flex flex-wrap gap-2 mb-4 relative z-10">
+                    {project.tags.map((tag) => (
+                        <span
+                            key={tag}
+                            className="bg-white/20 text-white text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm"
+                        >
+                    {tag}
+                  </span>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-6 text-white text-sm items-center relative z-10">
+                    <a href={project.code} className="flex items-center gap-1 hover:text-indigo-400 transition">
+                      <Github className="h-4 w-4" /> Code
+                    </a>
+                    <a href={project.demo} className="flex items-center gap-1 hover:text-indigo-400 transition">
+                      <ExternalLink className="h-4 w-4" /> Demo
+                    </a>
+                  </div>
                 </div>
-                <div className="flex space-x-4">
-                  <a
-                    href={project.github}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600"
-                  >
-                    <Github className="h-5 w-5" />
-                    <span>Code</span>
-                  </a>
-                  <a
-                    href={project.demo}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600"
-                  >
-                    <ExternalLink className="h-5 w-5" />
-                    <span>Demo</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
   );
 }

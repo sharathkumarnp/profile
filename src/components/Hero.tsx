@@ -8,7 +8,7 @@ export function Hero() {
       <div
         className="absolute inset-0 bg-cover bg-center opacity-45"
         style={{
-          backgroundImage: 'url(https://dineshportofolio.s3.us-east-1.amazonaws.com/sre_tools.webp)', 
+          backgroundImage: 'url(https://github-sharathkumar.s3.us-east-1.amazonaws.com/background.jpg)',
         }}
       ></div>
       
@@ -18,7 +18,7 @@ export function Hero() {
           {/* Profile Image and Info */}
           <div className="relative mb-8">
             <img
-              src="https://dineshportofolio.s3.us-east-1.amazonaws.com/profile.jpg?auto=format&fit=crop&q=80&w=200&h=200"
+              src="https://github-sharathkumar.s3.us-east-1.amazonaws.com/profile_image.jpg?auto=format&fit=crop&q=80&w=200&h=200"
               alt="Dinesh Kumar A"
               className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
             />
@@ -26,11 +26,10 @@ export function Hero() {
               <Terminal className="h-5 w-5 text-white" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold mb-2">Dinesh Kumar A</h1>
-          <h2 className="text-2xl text-indigo-600 mb-4">Site Reliability Engineer - 2</h2>
+          <h1 className="text-4xl font-bold mb-2">Sharath Kumar</h1>
+          <h2 className="text-2xl text-indigo-600 mb-4">Site Reliability Engineer</h2>
           <p className="text-xl text-gray-900 mb-8 max-w-2xl">
-            Experienced SRE with 3+ years of expertise in building and maintaining scalable, reliable, 
-            and efficient infrastructure. Passionate about automation, monitoring, and incident response.
+            Passionate about building scalable and reliable systems. Experienced in cloud-native technologies, infrastructure automation, and DevOps practices.
           </p>
 
           {/* Skills Section */}

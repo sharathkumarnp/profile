@@ -2,33 +2,33 @@ import React from 'react';
 
 const experiences = [
   {
-    company: "Agero Road Side Assistance",
+    company: "JFrog India Pvt Ltd",
     role: "Site Reliability Engineer",
-    duration: "Dec 2021 - Present",
-    description: "Responsible for building and maintaining scalable, reliable, and efficient infrastructure with a focus on automation, monitoring, and incident response.",
+    duration: "Jul 2021 - Present",
+    description: "Responsible for maintaining and improving the reliability, availability, and performance of JFrog's cloud services. Developed automation scripts and tools to enhance operational efficiency and reduce downtime.",
     projects: [
       {
-        title: "Infrastructure Automation",
-        description: "Automated the deployment of cloud infrastructure using Terraform and AWS CloudFormation, reducing provisioning time by 50%.",
-        technologies: ["Terraform", "AWS", "Linux"]
+        title: "Resource Monitor Automation",
+        description: "Developed an automated resource monitoring solution using Azure Function Apps, significantly reducing manual monitoring efforts and improving system reliability.",
+        technologies: ["Azure", "Python", "Function Apps", "Azure Monitor"]
       },
       {
-        title: "Incident Response Automation",
-        description: "Built an automated incident management pipeline using Splunk and PagerDuty, improving incident response times by 60%.",
-        technologies: ["Datadog", "PagerDuty", "Incident.io"]
+        title: "OpsGenie Stackstorm Integration",
+        description: "Integrated OpsGenie with Stackstorm to automate incident response workflows, enhancing incident management efficiency and reducing response times.",
+        technologies: ["OpsGenie", "Stackstorm", "Kubernetes", "Python"]
       }
     ]
   },
   {
-    company: "Amazon",
-    role: "Transaction Risk Investigator",
-    duration: "April 2021 - Dec 2021",
-    description: "Transaction Risk Management Systems (TRMS) is the Amazon organization that is dedicated to preserving customer trust. reduce fraudulent and suspicious activity in customer account",
+    company: "axcess.io",
+    role: "Cloud Engineer",
+    duration: "March 2019 - Jul 2021",
+    description: "Developed and maintained cloud infrastructure solutions, focusing on high availability and disaster recovery strategies. Collaborated with development teams to ensure seamless integration of cloud services.",
     projects: [
       {
-      "title": "Fraud Detection in Customer Orders",
-      "description": "Analyzed incoming customer orders using internal tools to identify and prevent fraudulent activities. Ensured compliance with organizational standards to preserve customer trust and reduce financial risk.",
-      "technologies": ["Internal Tools", "Analytical Skills", "Fraud Detection Processes"]
+      "title": "CloudFront analysis",
+      "description": "Implemented a comprehensive analysis of CloudFront logs to optimize content delivery and improve performance metrics.",
+      "technologies": ["AWS", "Athena", "S3"]
       }
     ]
   }

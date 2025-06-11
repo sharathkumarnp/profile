@@ -1,28 +1,28 @@
 import React from 'react';
 const certificates = [
   {
-    title: "AWS Certified Solutions Architect – Associate",
+    title: "AWS Certified SysOps Administrator – Associate",
     organization: "Amazon Web Services",
-    date: "August 2024",
-    certificateUrl: "https://www.credly.com/badges/f0ce6814-93cf-40a3-9e89-8992cab63cef/public_url",
+    date: "March 2020",
+    certificateUrl: "https://www.credly.com/badges/8c6885e9-9801-45b5-bd32-a00d24ec5f90/public_url",
   },
   {
-    title: "Microsoft Certified: Azure Fundamentals",
-    organization: "Microsoft",
-    date: "June 2023",
-    certificateUrl: "https://www.credly.com/badges/2f06212f-bb8c-4017-b9e5-1a8286b0e84b/public_url",
+    title: "Incident Management Certification",
+    organization: "PagerDuty",
+    date: "November 2021",
+    certificateUrl: "https://www.credly.com/badges/7bafafe2-766c-4c97-9ed4-11334f5b0bc1/public_url",
   },
   {
-    title: "Microsoft Certified: Azure Developer Associate",
-    organization: "Microsoft",
-    date: "June 2023",
-    certificateUrl: "https://www.credly.com/badges/fed72620-7fd2-4798-9171-c721b25a8fe1/public_url",
+    title: "Gremlin Certified Enterprise Chaos Engineering",
+    organization: "Gremlin",
+    date: "January 2025",
+    certificateUrl: "https://certification.gremlin.com/credentials/b4baef2c-1042-453a-9bd1-10cac88a6269",
   },
   {
-    title: "AWS Certified Cloud Practitioner",
-    organization: "Amazon Web Services",
-    date: "Oct 2022",
-    certificateUrl: "https://www.credly.com/badges/fbf3a24a-0851-41dc-a1aa-0c06aa8d3ece/public_url",
+    title: "Red Hat Certified System Administrator",
+    organization: "Red Hat",
+    date: "November 2018",
+    certificateUrl: "https://rhtapps.redhat.com/verify?certId=180-269-706",
   }
 ];
 export function Certificates() {

@@ -67,7 +67,7 @@ export function Skills() {
               <div className="absolute bottom-0 right-1/2 w-1/2 h-24 translate-x-1/2 bg-white/10 blur-2xl rounded-full opacity-10" />
             </div>
 
-            <h2 className="text-3xl font-bold text-center mb-12 text-gray-300 relative z-10">Technical Skills</h2>
+            <h2 className="text-3xl font-bold text-center mb-12 text-white relative z-10">Technical Skills</h2>
             <div className="relative z-10">
               <div
                   ref={scrollContainerRef}
@@ -82,7 +82,7 @@ export function Skills() {
                           alt={skill.name}
                           className="h-16 w-16 object-contain mb-2"
                       />
-                      <p className="text-sm font-semibold text-gray-300">{skill.name}</p>
+                      <p className="text-sm font-semibold text-white">{skill.name}</p>
                     </div>
                 ))}
               </div>

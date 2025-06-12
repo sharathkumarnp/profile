@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Mail, Github, Linkedin } from "lucide-react";
+import {Mail, Github, Linkedin, Twitter, X, LinkedinIcon, LucideMail, MessageCircle} from "lucide-react";
 
 export function Contact() {
   return (
@@ -21,7 +21,7 @@ export function Contact() {
 
             <div className="flex flex-wrap justify-center gap-4 relative z-10">
               <a
-                  href="mailto:sharathkumarnp@gmail.com"
+                  href="mailto:sharathkumarsr97@gmail.com"
                   className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all shadow-md"
               >
                 <Mail className="h-5 w-5" />
@@ -33,7 +33,7 @@ export function Contact() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all shadow-md"
               >
-                <Linkedin className="h-5 w-5" />
+                <LinkedinIcon className="h-5 w-5" />
                 LinkedIn
               </a>
               <a
@@ -44,6 +44,15 @@ export function Contact() {
               >
                 <Github className="h-5 w-5" />
                 GitHub
+              </a>
+              <a
+                  href="t.me/SharathETH"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all shadow-md"
+              >
+                <MessageCircle className="h-5 w-5" />
+                Telegram
               </a>
             </div>
           </div>

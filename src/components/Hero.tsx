@@ -44,7 +44,7 @@ export function Hero() {
                 href="#contact"
                 className="px-6 py-3 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
             >
-              Contact Me
+              Connect 🙋🏻‍♂️
             </a>
             <a
                 href="#projects"

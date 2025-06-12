@@ -1,6 +1,6 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-const skills = [
+const baseSkills = [
   { name: "Kubernetes", image: "https://github-sharathkumar.s3.us-east-1.amazonaws.com/kubernetes-96.png" },
   { name: "Docker", image: "https://github-sharathkumar.s3.us-east-1.amazonaws.com/docker-96.png" },
   { name: "Terraform", image: "https://github-sharathkumar.s3.us-east-1.amazonaws.com/terraform-96.png" },
@@ -25,61 +25,67 @@ const skills = [
   { name: "PagerDuty", image: "https://github-sharathkumar.s3.us-east-1.amazonaws.com/PagerDuty-96.png"}
 ];
 
+const skills = [...baseSkills, ...baseSkills, ...baseSkills];
+
 export function Skills() {
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef(null);
+  const [paused, setPaused] = useState(false);
 
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -200, behavior: "smooth" });
-    }
-  };
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 200, behavior: "smooth" });
+    // Set initial scroll position to the middle only once
+    if (container.scrollLeft === 0) {
+      container.scrollLeft = container.scrollWidth / 3;
     }
-  };
+
+    const interval = setInterval(() => {
+      if (!paused && container) {
+        container.scrollLeft += 1;
+
+        // Seamlessly reset to middle copy to create infinite loop illusion
+        const third = container.scrollWidth / 3;
+        if (container.scrollLeft >= container.scrollWidth - container.offsetWidth) {
+          container.scrollLeft = third;
+        }
+        if (container.scrollLeft <= 0) {
+          container.scrollLeft = third;
+        }
+      }
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, [paused]);
 
   return (
-      <section id="skills" className="py-20 bg-gray-50 dark:bg-gray-900">
+      <section id="skills" className="py-20 bg-gray-900">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/20 bg-white/10 dark:bg-white/5 backdrop-blur-xl p-10">
+          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-xl p-10">
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute top-0 left-1/2 w-2/3 h-32 -translate-x-1/2 bg-white/20 blur-xl rounded-full opacity-10" />
               <div className="absolute bottom-0 right-1/2 w-1/2 h-24 translate-x-1/2 bg-white/10 blur-2xl rounded-full opacity-10" />
             </div>
 
-            <h2 className="text-3xl font-bold text-center mb-12 text-white relative z-10">Technical Skills</h2>
+            <h2 className="text-3xl font-bold text-center mb-12 text-gray-300 relative z-10">Technical Skills</h2>
             <div className="relative z-10">
-              <button
-                  className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white/20 text-white border border-white/30 backdrop-blur-md rounded-full p-2 z-20"
-                  onClick={scrollLeft}
-              >
-                &#8249;
-              </button>
-
               <div
                   ref={scrollContainerRef}
                   className="flex overflow-x-auto space-x-6 scrollbar-hide px-10"
+                  onMouseEnter={() => setPaused(true)}
+                  onMouseLeave={() => setPaused(false)}
               >
-                {skills.map((skill) => (
-                    <div key={skill.name} className="flex flex-col items-center justify-center w-32 shrink-0">
+                {skills.map((skill, index) => (
+                    <div key={index} className="flex flex-col items-center justify-center w-32 shrink-0">
                       <img
                           src={skill.image}
                           alt={skill.name}
                           className="h-16 w-16 object-contain mb-2"
                       />
-                      <p className="text-sm font-medium text-white">{skill.name}</p>
+                      <p className="text-sm font-semibold text-gray-300">{skill.name}</p>
                     </div>
                 ))}
               </div>
-
-              <button
-                  className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white/20 text-white border border-white/30 backdrop-blur-md rounded-full p-2 z-20"
-                  onClick={scrollRight}
-              >
-                &#8250;
-              </button>
             </div>
           </div>
         </div>

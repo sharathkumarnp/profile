@@ -46,7 +46,7 @@ export function Contact() {
                 GitHub
               </a>
               <a
-                  href="t.me/SharathETH"
+                  href="https://t.me/SharathETH"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all shadow-md"

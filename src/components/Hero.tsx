@@ -32,7 +32,7 @@ export function Hero() {
       <section
           className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 sm:px-6"
           style={{
-            backgroundImage: "url('https://github-sharathkumar.s3.us-east-1.amazonaws.com/pexels-pixabay-315938.jpg')",
+            backgroundImage: "url('https://github-sharathkumar.s3.us-east-1.amazonaws.com/pexels-fbo-media-535159577-30269288.jpg')",
             backgroundSize: "cover",
             backgroundRepeat: "no-repeat",
             backgroundPosition: "center",

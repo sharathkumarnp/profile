@@ -3,26 +3,26 @@ import { Github, ExternalLink } from "lucide-react";
 
 const projects = [
   {
-    title: "Kubernetes Monitoring Stack",
+    title: "Status Page Update using Jenkins",
     description:
-        "Implemented a comprehensive monitoring solution using Prometheus, Grafana, and AlertManager for a large-scale Kubernetes cluster.",
-    tags: ["Kubernetes", "Prometheus", "Grafana", "Go"],
+        "Developed a Jenkins pipeline to automate the update of a status page, ensuring real-time updates and improved communication during incidents and also scheduling the maintenance updates.",
+    tags: ["Jenkins", "Python", "Status Page", "Atlassian", "API"],
     code: "#",
     demo: "#",
   },
   {
-    title: "Infrastructure Automation Framework",
+    title: "OpsGenie Stackstorm Integration",
     description:
-        "Developed a custom automation framework for infrastructure provisioning and configuration management using Terraform and Python.",
-    tags: ["Terraform", "Python", "AWS", "Infrastructure as Code"],
+        "Integrated OpsGenie with Stackstorm to automate incident response workflows, enhancing incident management efficiency and reducing response times.",
+    tags: ["OpsGenie", "Stackstorm", "Python"],
     code: "#",
     demo: "#",
   },
   {
-    title: "CI/CD Pipeline Optimization",
+    title: "Coralogix Metrics Scraper CI/CD Pipeline",
     description:
-        "Redesigned and optimized CI/CD pipelines, reducing build times by 60% and implementing automated testing and deployment.",
-    tags: ["Jenkins", "Docker", "GitLab", "Shell Scripting"],
+        "Developed a CI/CD pipeline to automate the deployment of a metrics scraper for Coralogix, ensuring continuous integration and delivery of monitoring solutions. Building new docker images upon every commit and pushing them to the artifactory edge.",
+    tags: ["Jenkins", "Docker", "CI/CD", "Python"],
     code: "#",
     demo: "#",
   },

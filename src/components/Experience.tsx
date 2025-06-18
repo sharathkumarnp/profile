@@ -31,6 +31,19 @@ const experiences = [
         technologies: ["AWS", "Athena", "S3"]
       }
     ]
+  },
+  {
+    company: "Zynux",
+    role: "Linux System Administrator",
+    duration: "Jun 208 - Dec 2018",
+    description: "Managed Linux-based systems and provided support for various applications. Focused on system performance tuning, security hardening, and user management.",
+    projects: [
+      {
+        title: "Patch Management",
+        description: "Implemented a robust patch management system to ensure all Linux servers were up-to-date with the latest security patches and updates, enhancing overall system security.",
+        technologies: ["Linux Red Hat7", "Bash"]
+      }
+    ]
   }
 ];
 

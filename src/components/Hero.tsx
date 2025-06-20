@@ -4,29 +4,29 @@ export function Hero() {
   const cardRef = useRef<HTMLDivElement>(null);
 
   // 3D Parallax Tilt Effect
-  useEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const { left, top, width, height } = card.getBoundingClientRect();
-      const x = (e.clientX - left) / width - 0.5;
-      const y = (e.clientY - top) / height - 0.5;
-      card.style.transform = `rotateX(${y * -20}deg) rotateY(${x * 20}deg)`;
-    };
-
-    const reset = () => {
-      card.style.transform = "rotateX(0deg) rotateY(0deg)";
-    };
-
-    card.addEventListener("mousemove", handleMouseMove);
-    card.addEventListener("mouseleave", reset);
-
-    return () => {
-      card.removeEventListener("mousemove", handleMouseMove);
-      card.removeEventListener("mouseleave", reset);
-    };
-  }, []);
+  // useEffect(() => {
+  //   const card = cardRef.current;
+  //   if (!card) return;
+  //
+  //   const handleMouseMove = (e: MouseEvent) => {
+  //     const { left, top, width, height } = card.getBoundingClientRect();
+  //     const x = (e.clientX - left) / width - 0.5;
+  //     const y = (e.clientY - top) / height - 0.5;
+  //     card.style.transform = `rotateX(${y * -20}deg) rotateY(${x * 20}deg)`;
+  //   };
+  //
+  //   const reset = () => {
+  //     card.style.transform = "rotateX(0deg) rotateY(0deg)";
+  //   };
+  //
+  //   card.addEventListener("mousemove", handleMouseMove);
+  //   card.addEventListener("mouseleave", reset);
+  //
+  //   return () => {
+  //     card.removeEventListener("mousemove", handleMouseMove);
+  //     card.removeEventListener("mouseleave", reset);
+  //   };
+  // }, []);
 
   return (
       <section

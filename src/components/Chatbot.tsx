@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 type ChatMessage = { role: "user" | "assistant" | "system"; content: string };
 
-const PROXY_URL = "https://gpt-proxy-delta.vercel.app/api/chat"; // ← your Vercel endpoint
+const PROXY_URL = "https://gpt-proxy-pink.vercel.app/api/chat"; // ← your Vercel endpoint
 
 const Chatbot: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -72,7 +72,7 @@ const Chatbot: React.FC = () => {
         <div className="fixed bottom-4 right-4 z-50">
             <button
                 onClick={toggleChat}
-                className="bg-black text-white rounded-full p-4 shadow-lg hover:scale-105 transition-transform"
+                className="bg-white text-black rounded-full p-4 shadow-lg hover:scale-105 transition-transform"
                 aria-label="Open chat"
                 title="Chat with me"
             >

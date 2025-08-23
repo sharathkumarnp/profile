@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 
-type ChatMessage = { role: "user" | "assistant" | "system"; content: string };
+type Role = "user" | "assistant" | "system";
+type ChatMessage = { role: Role; content: string };
 
-const PROXY_URL = "https://gpt-proxy-pink.vercel.app/api/chat"; // ← your Vercel endpoint
+const PROXY_URL = "https://gpt-proxy-pink.vercel.app/api/chat";
 
 const Chatbot: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -10,59 +11,57 @@ const Chatbot: React.FC = () => {
     const [input, setInput] = useState("");
     const [sending, setSending] = useState(false);
 
-    const toggleChat = () => setIsOpen(!isOpen);
+    const toggleChat = () => setIsOpen((v) => !v);
 
     const sendMessage = async () => {
-        if (!input.trim() || sending) return;
+        const text = input.trim();
+        if (!text || sending) return;
 
-        const userMessage: ChatMessage = { role: "user", content: input.trim() };
+        const userMessage: ChatMessage = { role: "user", content: text };
         setMessages((prev) => [...prev, userMessage]);
         setInput("");
         setSending(true);
 
         try {
-            // Build payload: include a short system persona plus the chat history and the new user message
             const payload = {
+                model: "gpt-4o-mini", // explicit; server also defaults to this
                 messages: [
                     {
                         role: "system",
                         content:
-                            "You are Sharath’s portfolio assistant. Be concise, friendly, and helpful. \
-              Answer questions about his skills (SRE, cloud, CI/CD, K8s, observability), projects, and experience. \
-              If a question is unrelated, answer briefly and steer back to portfolio topics.",
+                            "You are Sharath’s portfolio assistant. Be concise, friendly, and helpful about his skills, projects, and experience. If unrelated, answer briefly and steer back to portfolio topics.",
                     },
                     ...messages,
                     userMessage,
                 ],
             };
 
-            const response = await fetch(PROXY_URL, {
+            const res = await fetch(PROXY_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
 
-            const data = await response.json();
+            const data = await res.json();
 
-            if (!response.ok) {
-                const detail =
-                    (data && (data.detail || data.message)) || "Unknown error from proxy";
-                throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+            if (!res.ok) {
+                const msg =
+                    data?.code === "insufficient_quota"
+                        ? "The assistant is temporarily unavailable (quota). Please try again later."
+                        : data?.message || "Something went wrong.";
+                setMessages((prev) => [...prev, { role: "assistant", content: msg }]);
+                return;
             }
 
-            // OpenAI chat/completions shape
             const reply =
                 data?.choices?.[0]?.message?.content ??
                 "Sorry, I couldn’t generate a response.";
-
-            const botMessage: ChatMessage = { role: "assistant", content: reply };
-            setMessages((prev) => [...prev, botMessage]);
-        } catch (err: any) {
-            const botMessage: ChatMessage = {
-                role: "assistant",
-                content: `Oops, something went wrong: ${err?.message || String(err)}`,
-            };
-            setMessages((prev) => [...prev, botMessage]);
+            setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+        } catch (e: any) {
+            setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: `Oops, something went wrong: ${e?.message || String(e)}` },
+            ]);
         } finally {
             setSending(false);
         }
@@ -90,9 +89,7 @@ const Chatbot: React.FC = () => {
                             <div
                                 key={idx}
                                 className={`text-sm ${
-                                    msg.role === "user"
-                                        ? "text-right"
-                                        : "text-left text-gray-800"
+                                    msg.role === "user" ? "text-right" : "text-left text-gray-800"
                                 }`}
                             >
                                 <div

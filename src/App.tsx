@@ -7,11 +7,11 @@ import { Projects } from './components/Projects';
 import { Contact } from './components/Contact';
 import { Certificates } from './components/Certificates';
 import { Experience } from "./components/Experience";
+import Chatbot from './components/Chatbot'; // 👈 Add this import
 
 function App() {
-    // Remove darkMode state and button
     return (
-        <div className="min-h-screen bg-black text-white">
+        <div className="min-h-screen bg-black text-white relative">
             <Header />
             <main>
                 <Hero />
@@ -26,6 +26,8 @@ function App() {
                     <p>© {new Date().getFullYear()} - Built with React & Tailwind CSS</p>
                 </div>
             </footer>
+
+            <Chatbot /> {/* 👈 This mounts the chatbot globally, always visible */}
         </div>
     );
 }

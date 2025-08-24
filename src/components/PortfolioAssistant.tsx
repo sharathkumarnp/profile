@@ -1,8 +1,7 @@
-// src/components/PortfolioAssistant.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=3"; // add ?v=2 if you want to bust server cache
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=4"; // bump v to bust any stale caches
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
@@ -48,6 +47,7 @@ function serializeProfile(p: Profile): string {
             c.email ? `Email: ${c.email}` : null,
             c.linkedin ? `LinkedIn: ${c.linkedin}` : null,
             c.github ? `GitHub: ${c.github}` : null,
+            c.website ? `Website: ${c.website}` : null,
             c.telegram ? `Telegram: ${c.telegram}` : null,
         ].filter(Boolean);
         if (bits.length) parts.push(`Contact: ${bits.join(" • ")}`);
@@ -62,7 +62,8 @@ const PortfolioAssistant: React.FC = () => {
     const [sending, setSending] = useState(false);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [faq, setFaq] = useState<FAQItem[] | null>(null);
-    const [showTips, setShowTips] = useState(true); // FAQ/suggestions panel
+    const [kbReady, setKbReady] = useState(false); // ✔️ only use local answers once loaded
+    const [showTips, setShowTips] = useState(true);
     const listRef = useRef<HTMLDivElement>(null);
 
     // Load profile + FAQ
@@ -76,6 +77,7 @@ const PortfolioAssistant: React.FC = () => {
                 if (p.status === "fulfilled" && p.value) setProfile(p.value);
                 if (f.status === "fulfilled" && f.value) setFaq(f.value);
             } catch {}
+            setKbReady(true);
         })();
     }, []);
 
@@ -117,7 +119,7 @@ const PortfolioAssistant: React.FC = () => {
         "How can I contact you?"
     ];
 
-    // ---- Local zero-token answers (stop hallucinations) ----
+    // ---- Local zero-token answers ----
     const tryFAQ = (q: string): string | null => {
         if (!faq) return null;
         let best = { s: 0, a: "" };
@@ -132,23 +134,19 @@ const PortfolioAssistant: React.FC = () => {
         const roles = Array.isArray(profile?.target_roles) ? profile!.target_roles : null;
         return roles && roles.length ? `Sharath is targeting roles: ${roles.join(", ")}.` : null;
     };
-
     const skillsFromProfile = (): string | null => {
-        const s = profile?.skills;
-        return Array.isArray(s) && s.length ? `Top skills: ${s.slice(0, 12).join(", ")}.` : null;
+        const s = profile?.skills; return Array.isArray(s) && s.length ? `Top skills: ${s.slice(0, 16).join(", ")}.` : null;
     };
-
     const contactFromProfile = (): string | null => {
         const c = profile?.contact || {};
         const bits = [
             c.email ? `Email: ${c.email}` : null,
             c.linkedin ? `LinkedIn: ${c.linkedin}` : null,
             c.github ? `GitHub: ${c.github}` : null,
-            c.telegram ? `Telegram: ${c.telegram}` : null,
+            c.website ? `Website: ${c.website}` : null
         ].filter(Boolean);
         return bits.length ? `You can reach Sharath via ${bits.join(" • ")}.` : null;
     };
-
     const projectsFromProfile = (): string | null => {
         const p = profile?.projects;
         if (Array.isArray(p) && p.length) {
@@ -159,15 +157,15 @@ const PortfolioAssistant: React.FC = () => {
     };
 
     const localAnswer = (text: string): string | null => {
+        if (!kbReady) return null; // ⬅️ don’t attempt local until loaded
         const s = normalize(text);
-        // commands handled elsewhere
         if (/role|position|target/.test(s)) return rolesFromProfile() || tryFAQ(text);
         if (/skill|stack/.test(s)) return skillsFromProfile() || tryFAQ(text);
-        if (/contact|reach|email|linkedin|github|telegram/.test(s)) return contactFromProfile() || tryFAQ(text);
+        if (/contact|reach|email|linkedin|github|telegram|website/.test(s)) return contactFromProfile() || tryFAQ(text);
         if (/project|work|recent/.test(s)) return projectsFromProfile() || tryFAQ(text);
         return tryFAQ(text);
     };
-    // --------------------------------------------------------
+    // ----------------------------------
 
     const send = async (override?: string) => {
         const text = (override ?? input).trim();
@@ -175,28 +173,19 @@ const PortfolioAssistant: React.FC = () => {
 
         // Commands
         const cmd = text.trim();
-        if (/^\/?(faq|help)\s*$/i.test(cmd)) {
-            setShowTips(true);
-            setInput("");
-            return;
-        }
-        if (/^\/?clear\s*$/i.test(cmd)) {
-            setMessages([]);
-            setShowTips(true);
-            setInput("");
-            return;
-        }
+        if (/^\/?(faq|help)\s*$/i.test(cmd)) { setShowTips(true); setInput(""); return; }
+        if (/^\/?clear\s*$/i.test(cmd)) { setMessages([]); setShowTips(true); setInput(""); return; }
 
-        // Local answer first (no tokens)
-        const maybeLocal = localAnswer(text);
-        if (maybeLocal) {
-            setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: maybeLocal }]);
+        // 1) Try local (only if loaded); otherwise go straight to model
+        const maybe = localAnswer(text);
+        if (maybe) {
+            setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: maybe }]);
             setShowTips(false);
             setInput("");
             return;
         }
 
-        // Else call proxy
+        // 2) Model
         const userMessage: ChatMessage = { role: "user", content: text };
         setMessages(prev => [...prev, userMessage]);
         setShowTips(false);
@@ -211,9 +200,11 @@ const PortfolioAssistant: React.FC = () => {
                 messages: [
                     {
                         role: "system",
+                        // ✔️ New prompt: use context for Sharath questions; otherwise answer normally
                         content:
-                            "You are Sharath’s portfolio assistant. Keep answers brief, concrete (<=100 words; bullets welcome). " +
-                            "Use only the provided context/history. If unknown, reply exactly: “I don’t know yet.”"
+                            "You are Sharath’s portfolio assistant. If the question is about Sharath’s skills, roles, projects, " +
+                            "experience or contact info, rely on the provided context/history and do not invent facts. " +
+                            "For general or casual chat, answer helpfully."
                     },
                     ...(profileContext ? [{
                         role: "system" as const,
@@ -222,7 +213,8 @@ const PortfolioAssistant: React.FC = () => {
                     ...trimmed,
                     userMessage
                 ],
-                temperature: 0.2
+                temperature: 0.3,
+                max_tokens: 256
             };
 
             const res = await fetch(PROXY_URL, {
@@ -269,10 +261,10 @@ const PortfolioAssistant: React.FC = () => {
                 </button>
             )}
 
-            {/* Panel */}
+            {/* Panel — fixed size for consistency */}
             {open && (
                 <div
-                    className="pointer-events-auto w-[min(92vw,26rem)] max-h-[min(80vh,38rem)]
+                    className="pointer-events-auto w-[26rem] h-[36rem]  /* standard size */
                      backdrop-blur-xl bg-neutral-900/80 border border-white/10
                      rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 >
@@ -306,7 +298,7 @@ const PortfolioAssistant: React.FC = () => {
                             <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
                                 👋 I can answer questions about Sharath’s background. Try a quick prompt:
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    {suggestions.map((s, i) => (
+                                    {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
                                         <button
                                             key={i}
                                             onClick={() => { setShowTips(false); send(s); }}
@@ -343,16 +335,18 @@ const PortfolioAssistant: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Composer with FAQ overlay near input */}
+                    {/* Composer + FAQ popover (animated) */}
                     <div className="relative p-3 border-t border-white/10 bg-black/40">
-                        {/* Overlayed tips above the input */}
-                        {showTips && (
-                            <div className="absolute -top-2 right-3 left-3 translate-y-[-100%] z-10
-                              bg-white/5 border border-white/10 rounded-xl p-3">
+                        {/* Popover anchored just above the input */}
+                        <div
+                            className={`absolute bottom-full left-3 right-3 mb-2 z-20 transition-all duration-200 ease-out
+                          ${showTips ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}
+                        >
+                            <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3 shadow-lg">
                                 <div className="text-xs text-white/90">
                                     Quick prompts:
                                     <div className="mt-2 flex flex-wrap gap-2">
-                                        {suggestions.map((s, i) => (
+                                        {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
                                             <button
                                                 key={i}
                                                 onClick={() => { setShowTips(false); send(s); }}
@@ -364,7 +358,7 @@ const PortfolioAssistant: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        </div>
 
                         <div className="flex items-center gap-2">
                             <input
@@ -373,7 +367,7 @@ const PortfolioAssistant: React.FC = () => {
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                                 placeholder="Ask me anything about Sharath…"
-                                className="flex-1 px-3 py-2 rounded-xl bg.white/10 bg-white/10 border border-white/10 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/60"
+                                className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/60"
                                 disabled={sending}
                             />
 

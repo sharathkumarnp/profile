@@ -4,5 +4,8 @@
   {"q":"How to contact you?","a":"Use the Contact section on the page or email me (see footer)."},
   { "q": "What roles are you targeting?", "a": "SRE / Platform / DevOps Engineer roles." },
   { "q": "What roles are you targeting", "a": "SRE / Platform / DevOps Engineer roles." },
-  { "q": "Target roles", "a": "SRE / Platform / DevOps Engineer roles." }
+  { "q": "Target roles", "a": "SRE / Platform / DevOps Engineer roles." },
+  {"q": "Are you open to relocation?", "a": "Yes, open to relocation within India and internationally."},
+  {"q": "What certifications do you hold?", "a": "CKA, AWS Certified Solutions Architect, RHCSE, Gremlin Certified Engineer."},
+  {"q": "What is your salary expectation?", "a": "Open to discussion based on role and responsibilities." }
 ]

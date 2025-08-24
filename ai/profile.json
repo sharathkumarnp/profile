@@ -11,6 +11,7 @@
     {"company":"JFrog India","role":"SRE","years":"2019–Present","highlights":["99.95% SLO","Cost down 20%","Incident runbooks"]}
   ],
   "certs": ["CKA","AWS","RHCSE","Gremlin"],
+  "target_roles": ["SRE", "Platform Engineer", "DevOps Engineer"],
   "links": {"github":"https://github.com/sharathkumarnp","site":"https://sharathkumarnp.github.io/profile/","linkedin":"https://www.linkedin.com/in/sharathkumarnp/"},
   "faqs": [
     {"q":"What roles is Sharath targeting?","a":"SRE / Platform / DevOps Engineer."},

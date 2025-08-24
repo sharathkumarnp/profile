@@ -2,10 +2,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=6"; // bump v when redeploying proxy
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=7"; // bump to bust caches after proxy deploys
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
+// default policy: do NOT allow general chat (saves tokens)
+const ALLOW_GENERAL_CHAT_DEFAULT = false;
 /** ========================= */
 
 type Role = "user" | "assistant" | "system";
@@ -56,7 +58,7 @@ function serializeProfile(p: Profile): string {
     return parts.join("\n");
 }
 
-/** ========== Rich HTML builders for local answers ========== */
+/** ======== Rich HTML builders for local answers ======== */
 const chip = (text: string) =>
     `<span class="inline-block rounded-full px-2.5 py-1 text-[12px] bg-white/10 border border-white/10 mr-1 mb-1">${escapeHtml(text)}</span>`;
 
@@ -116,9 +118,7 @@ function escapeHtml(s: string) {
         .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
-function escapeAttr(s: string) {
-    return escapeHtml(s);
-}
+function escapeAttr(s: string) { return escapeHtml(s); }
 
 /** ========== Component ========== */
 const PortfolioAssistant: React.FC = () => {
@@ -135,9 +135,12 @@ const PortfolioAssistant: React.FC = () => {
     const [showWelcome, setShowWelcome] = useState(true);
     const [showTips, setShowTips]       = useState(true);
 
+    // gate to save tokens (can toggle with /chat on|off)
+    const [allowGeneral, setAllowGeneral] = useState(ALLOW_GENERAL_CHAT_DEFAULT);
+
     const listRef = useRef<HTMLDivElement>(null);
 
-    // Load profile + FAQ (fallback to embedded faqs if faq.json missing)
+    // Load profile + FAQ
     useEffect(() => {
         (async () => {
             try {
@@ -161,18 +164,15 @@ const PortfolioAssistant: React.FC = () => {
             }
         } catch {}
     }, []);
-
     // Persist
     useEffect(() => {
         try { localStorage.setItem("portfolio-assistant", JSON.stringify(messages.slice(-24))); } catch {}
     }, [messages]);
-
     // Scroll with new content
     useEffect(() => {
         if (!open) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
     }, [messages, sending, open]);
-
     // Close on ESC
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
@@ -181,6 +181,7 @@ const PortfolioAssistant: React.FC = () => {
     }, []);
 
     const profileContext = useMemo(() => serializeProfile(profile || {}), [profile]);
+
     const suggestions = [
         "What roles are you targeting?",
         "List your top skills.",
@@ -202,6 +203,18 @@ const PortfolioAssistant: React.FC = () => {
     const localRich = (text: string): ChatMessage | null => {
         if (!kbReady) return null;
         const s = normalize(text);
+
+        // greetings -> local, no tokens
+        if (/^(hi|hello|hey)\b/.test(s)) {
+            return {
+                role: "assistant",
+                html: `
+          <div class="space-y-2">
+            <div>Hi! I can help with questions about <b>Sharath’s roles, skills, projects, experience, and contact info</b>.</div>
+            <div class="flex flex-wrap">${suggestions.map(chip).join("")}</div>
+          </div>`
+            };
+        }
 
         // Roles
         if (/role|position|target/.test(s)) {
@@ -235,6 +248,21 @@ const PortfolioAssistant: React.FC = () => {
         const a = tryFAQ(text);
         return a ? { role: "assistant", content: a } : null;
     };
+
+    /** Portfolio intent classifier — to block out-of-scope */
+    const isPortfolioIntent = (text: string): boolean => {
+        const s = normalize(text);
+        // obvious portfolio topics
+        if (/(role|skills?|projects?|experience|contact|resume|cv|cert|salary|relocat|github|linkedin|portfolio|education|availability|notice|location)\b/.test(s)) {
+            return true;
+        }
+        // mentions of Sharath or "you/your" + career-ish word
+        if (/\b(sharath|you|your)\b/.test(s) &&
+            /(role|skill|project|experience|contact|resume|cv|cert|salary|relocat|github|linkedin|site|portfolio|about)/.test(s)) {
+            return true;
+        }
+        return false;
+    };
     /** --------------------------------------------- */
 
     const send = async (override?: string) => {
@@ -257,6 +285,18 @@ const PortfolioAssistant: React.FC = () => {
             setInput("");
             return;
         }
+        if (/^\/?chat\s+on\s*$/i.test(cmd)) {
+            setAllowGeneral(true);
+            setMessages(prev => [...prev, { role: "assistant", content: "General chat is now ON for this session. Type /chat off to disable." }]);
+            setInput("");
+            return;
+        }
+        if (/^\/?chat\s+off\s*$/i.test(cmd)) {
+            setAllowGeneral(false);
+            setMessages(prev => [...prev, { role: "assistant", content: "General chat is now OFF. I’ll answer only Sharath-related questions." }]);
+            setInput("");
+            return;
+        }
 
         // 1) Local rich answer
         const maybe = localRich(text);
@@ -267,7 +307,30 @@ const PortfolioAssistant: React.FC = () => {
             return;
         }
 
-        // 2) Model
+        // 2) Guardrails: block out-of-scope if general chat is off
+        if (!isPortfolioIntent(text) && !allowGeneral) {
+            setMessages(prev => [
+                ...prev,
+                { role: "user", content: text },
+                {
+                    role: "assistant",
+                    html: `
+            <div class="space-y-2">
+              <div><b>Out of scope:</b> This assistant is for questions about <b>Sharath</b> (roles, skills, projects, experience, contact).</div>
+              <div class="text-[13px] text-white/70">To save tokens, general tech Q&A is disabled.</div>
+              <div class="flex flex-wrap">${suggestions.map(chip).join("")}</div>
+              <div class="text-[13px] text-white/70">
+                Need general help just once? Type <code>/chat on</code> to enable model replies, then <code>/chat off</code> to disable.
+              </div>
+              <div class="text-[13px]">Kubernetes docs: <a class="underline decoration-white/40 hover:decoration-white" href="https://kubernetes.io/docs/home/" target="_blank" rel="noopener noreferrer">kubernetes.io/docs</a></div>
+            </div>`
+                }
+            ]);
+            setInput("");
+            return;
+        }
+
+        // 3) Model (allowed)
         const userMessage: ChatMessage = { role: "user", content: text };
         setMessages(prev => [...prev, userMessage]);
         setShowTips(false);
@@ -329,7 +392,7 @@ const PortfolioAssistant: React.FC = () => {
 
     /** Render helpers */
     const autoLink = (text: string) => {
-        // Very small auto-linker for assistant plain text
+        // Small auto-linker for assistant plain text
         const urlRe = /((https?:\/\/|www\.)[^\s)]+)|([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi;
         const parts: React.ReactNode[] = [];
         let last = 0;
@@ -362,7 +425,6 @@ const PortfolioAssistant: React.FC = () => {
                         dangerouslySetInnerHTML={{ __html: m.html }} />;
         }
         if (m.role === "assistant") {
-            // Split into paragraphs, auto-link URLs/emails
             const paras = m.content.split(/\n{2,}/).map((p, i) => (
                 <p key={i} className="my-1">{autoLink(p)}</p>
             ));
@@ -516,7 +578,8 @@ const PortfolioAssistant: React.FC = () => {
                         <div className="mt-2 text-[10px] text-white/60">
                             Press <kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> to send ·
                             <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/faq</kbd> to show tips ·
-                            <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/clear</kbd> to reset
+                            <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/clear</kbd> to reset ·
+                            <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/chat on</kbd> enable general Q&A
                         </div>
                     </div>
                 </div>

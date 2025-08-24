@@ -1,7 +1,8 @@
+// src/components/PortfolioAssistant.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=4"; // bump v to bust any stale caches
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=5"; // bump v to bust caches when you redeploy proxy
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
@@ -57,27 +58,32 @@ function serializeProfile(p: Profile): string {
 
 const PortfolioAssistant: React.FC = () => {
     const [open, setOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [input, setInput] = useState("");
-    const [sending, setSending] = useState(false);
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [faq, setFaq] = useState<FAQItem[] | null>(null);
-    const [kbReady, setKbReady] = useState(false); // ✔️ only use local answers once loaded
-    const [showTips, setShowTips] = useState(true);
+
+    const [messages, setMessages]   = useState<ChatMessage[]>([]);
+    const [input, setInput]         = useState("");
+    const [sending, setSending]     = useState(false);
+
+    const [profile, setProfile]     = useState<Profile | null>(null);
+    const [faq, setFaq]             = useState<FAQItem[] | null>(null);
+    const [kbReady, setKbReady]     = useState(false);             // only use local answers after load
+
+    const [showWelcome, setShowWelcome] = useState(true);          // big intro card (top)
+    const [showTips, setShowTips]       = useState(true);          // popover above input
+
     const listRef = useRef<HTMLDivElement>(null);
 
-    // Load profile + FAQ
+    // Load profile + FAQ (fallback to embedded faqs if separate file is missing)
     useEffect(() => {
         (async () => {
             try {
-                const [p, f] = await Promise.allSettled([
-                    fetch(PROFILE_URL, { cache: "no-store" }).then(r => r.ok ? r.json() : null),
-                    fetch(FAQ_URL,     { cache: "no-store" }).then(r => r.ok ? r.json() : null),
-                ]);
-                if (p.status === "fulfilled" && p.value) setProfile(p.value);
-                if (f.status === "fulfilled" && f.value) setFaq(f.value);
-            } catch {}
-            setKbReady(true);
+                const p = await fetch(PROFILE_URL, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null);
+                const f = await fetch(FAQ_URL,     { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null);
+                if (p) setProfile(p);
+                if (f) setFaq(f);
+                else if (p?.faqs && Array.isArray(p.faqs)) setFaq(p.faqs);
+            } finally {
+                setKbReady(true);
+            }
         })();
     }, []);
 
@@ -88,10 +94,11 @@ const PortfolioAssistant: React.FC = () => {
             if (saved) {
                 const arr = JSON.parse(saved) as ChatMessage[];
                 setMessages(arr);
-                if (arr.length > 0) setShowTips(false);
+                if (arr.length > 0) { setShowWelcome(false); setShowTips(false); }
             }
         } catch {}
     }, []);
+
     // Persist
     useEffect(() => {
         try { localStorage.setItem("portfolio-assistant", JSON.stringify(messages.slice(-24))); } catch {}
@@ -119,7 +126,7 @@ const PortfolioAssistant: React.FC = () => {
         "How can I contact you?"
     ];
 
-    // ---- Local zero-token answers ----
+    // ---- Local zero-token answers (only if kbReady) ----
     const tryFAQ = (q: string): string | null => {
         if (!faq) return null;
         let best = { s: 0, a: "" };
@@ -157,24 +164,38 @@ const PortfolioAssistant: React.FC = () => {
     };
 
     const localAnswer = (text: string): string | null => {
-        if (!kbReady) return null; // ⬅️ don’t attempt local until loaded
+        if (!kbReady) return null; // don't try until we loaded files
         const s = normalize(text);
         if (/role|position|target/.test(s)) return rolesFromProfile() || tryFAQ(text);
-        if (/skill|stack/.test(s)) return skillsFromProfile() || tryFAQ(text);
-        if (/contact|reach|email|linkedin|github|telegram|website/.test(s)) return contactFromProfile() || tryFAQ(text);
-        if (/project|work|recent/.test(s)) return projectsFromProfile() || tryFAQ(text);
+        if (/skill|stack/.test(s))          return skillsFromProfile() || tryFAQ(text);
+        if (/contact|reach|email|linkedin|github|telegram|website/.test(s))
+            return contactFromProfile() || tryFAQ(text);
+        if (/project|work|recent/.test(s))  return projectsFromProfile() || tryFAQ(text);
         return tryFAQ(text);
     };
-    // ----------------------------------
+    // ----------------------------------------------------
 
     const send = async (override?: string) => {
         const text = (override ?? input).trim();
         if (!text || sending) return;
 
+        // any interaction hides the welcome card
+        setShowWelcome(false);
+
         // Commands
         const cmd = text.trim();
-        if (/^\/?(faq|help)\s*$/i.test(cmd)) { setShowTips(true); setInput(""); return; }
-        if (/^\/?clear\s*$/i.test(cmd)) { setMessages([]); setShowTips(true); setInput(""); return; }
+        if (/^\/?(faq|help)\s*$/i.test(cmd)) {
+            setShowTips(true);  // show popover (but not the welcome)
+            setInput("");
+            return;
+        }
+        if (/^\/?clear\s*$/i.test(cmd)) {
+            setMessages([]);
+            setShowWelcome(true); // show intro again on clear
+            setShowTips(true);
+            setInput("");
+            return;
+        }
 
         // 1) Try local (only if loaded); otherwise go straight to model
         const maybe = localAnswer(text);
@@ -200,7 +221,7 @@ const PortfolioAssistant: React.FC = () => {
                 messages: [
                     {
                         role: "system",
-                        // ✔️ New prompt: use context for Sharath questions; otherwise answer normally
+                        // Use context for Sharath questions; otherwise be helpful.
                         content:
                             "You are Sharath’s portfolio assistant. If the question is about Sharath’s skills, roles, projects, " +
                             "experience or contact info, rely on the provided context/history and do not invent facts. " +
@@ -261,10 +282,10 @@ const PortfolioAssistant: React.FC = () => {
                 </button>
             )}
 
-            {/* Panel — fixed size for consistency */}
+            {/* Panel — standard size for consistency */}
             {open && (
                 <div
-                    className="pointer-events-auto w-[26rem] h-[36rem]  /* standard size */
+                    className="pointer-events-auto w-[26rem] h-[36rem]
                      backdrop-blur-xl bg-neutral-900/80 border border-white/10
                      rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 >
@@ -294,14 +315,14 @@ const PortfolioAssistant: React.FC = () => {
                         ref={listRef}
                         className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth"
                     >
-                        {!messages.length && showTips && (
+                        {showWelcome && !messages.length && (
                             <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
                                 👋 I can answer questions about Sharath’s background. Try a quick prompt:
                                 <div className="mt-2 flex flex-wrap gap-2">
                                     {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
                                         <button
                                             key={i}
-                                            onClick={() => { setShowTips(false); send(s); }}
+                                            onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
                                             className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
                                         >
                                             {s}
@@ -337,28 +358,30 @@ const PortfolioAssistant: React.FC = () => {
 
                     {/* Composer + FAQ popover (animated) */}
                     <div className="relative p-3 border-t border-white/10 bg-black/40">
-                        {/* Popover anchored just above the input */}
-                        <div
-                            className={`absolute bottom-full left-3 right-3 mb-2 z-20 transition-all duration-200 ease-out
-                          ${showTips ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"}`}
-                        >
-                            <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3 shadow-lg">
-                                <div className="text-xs text-white/90">
-                                    Quick prompts:
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                        {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => { setShowTips(false); send(s); }}
-                                                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
-                                            >
-                                                {s}
-                                            </button>
-                                        ))}
+                        {/* Popover anchored above the input — only show when not showing the welcome card */}
+                        {showTips && !showWelcome && (messages.length > 0) && (
+                            <div
+                                className="absolute bottom-full left-3 right-3 mb-2 z-20 transition-all duration-200 ease-out
+                           opacity-100 translate-y-0 pointer-events-auto"
+                            >
+                                <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3 shadow-lg">
+                                    <div className="text-xs text-white/90">
+                                        Quick prompts:
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                            {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
+                                                    className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="flex items-center gap-2">
                             <input
@@ -373,7 +396,7 @@ const PortfolioAssistant: React.FC = () => {
 
                             {/* FAQ toggle */}
                             <button
-                                onClick={() => setShowTips(s => !s)}
+                                onClick={() => { setShowWelcome(false); setShowTips(s => !s); }}
                                 className="shrink-0 p-2 rounded-xl bg-white/10 border border-white/10 text-white hover:bg-white/20"
                                 title={showTips ? "Hide FAQ" : "Show FAQ"}
                                 aria-label="Toggle FAQ"

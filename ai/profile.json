@@ -8,12 +8,12 @@
     {"name":"Kubernetes Platform","stack":["EKS","Helm","ArgoCD"],"highlights":["Blue/green deploys","HPA auto scaling"]}
   ],
   "experience": [
-    {"company":"Company A","role":"SRE","years":"2022–Present","highlights":["99.95% SLO","Cost down 20%","Incident runbooks"]}
+    {"company":"JFrog India","role":"SRE","years":"2019–Present","highlights":["99.95% SLO","Cost down 20%","Incident runbooks"]}
   ],
-  "certs": ["CKA","AWS SAA"],
-  "links": {"github":"https://github.com/sharathkumarnp","site":"https://sharathkumarnp.github.io/profile/"},
+  "certs": ["CKA","AWS","RHCSE","Gremlin"],
+  "links": {"github":"https://github.com/sharathkumarnp","site":"https://sharathkumarnp.github.io/profile/","linkedin":"https://www.linkedin.com/in/sharathkumarnp/"},
   "faqs": [
     {"q":"What roles is Sharath targeting?","a":"SRE / Platform / DevOps Engineer."},
-    {"q":"Comfortable clouds?","a":"AWS (most), also GCP."}
+    {"q":"Comfortable clouds?","a":"AWS (most), also GCP & Azure."}
   ]
 }

@@ -1,5 +1,8 @@
 [
   {"q":"What roles are you targeting?","a":"SRE / Platform / DevOps Engineering roles."},
   {"q":"Top skills?","a":"Kubernetes, Terraform, GitHub Actions, Prometheus/Grafana, AWS, CI/CD."},
-  {"q":"How to contact you?","a":"Use the Contact section on the page or email me (see footer)."}
+  {"q":"How to contact you?","a":"Use the Contact section on the page or email me (see footer)."},
+  { "q": "What roles are you targeting?", "a": "SRE / Platform / DevOps Engineer roles." },
+  { "q": "What roles are you targeting", "a": "SRE / Platform / DevOps Engineer roles." },
+  { "q": "Target roles", "a": "SRE / Platform / DevOps Engineer roles." }
 ]

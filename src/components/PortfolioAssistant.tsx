@@ -2,21 +2,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=9"; // bump to bust caches after proxy deploys
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=10";
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
-// default policy: do NOT allow general chat (saves tokens)
-const ALLOW_GENERAL_CHAT_DEFAULT = true;
+const ALLOW_GENERAL_CHAT_DEFAULT = false;
 /** ========================= */
 
 type Role = "user" | "assistant" | "system";
-type ChatMessage = { role: Role; content: string; html?: string }; // html for rich local answers
+type ChatMessage = { role: Role; content: string; html?: string };
 type FAQItem = { q: string; a: string };
 type Profile = Record<string, any>;
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
-
 const normalize = (s: string) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
 const jaccard = (a: string, b: string) => {
     const A = new Set(normalize(a).split(/\W+/).filter(Boolean));
@@ -60,10 +58,8 @@ function serializeProfile(p: Profile): string {
     return parts.join("\n");
 }
 
-/** ======== Rich HTML builders for local answers ======== */
 const chip = (text: string) =>
     `<span class="inline-block rounded-full px-2.5 py-1 text-[12px] bg-white/10 border border-white/10 mr-1 mb-1">${escapeHtml(text)}</span>`;
-
 const anchor = (href: string, label?: string) =>
     `<a class="underline decoration-white/40 hover:decoration-white" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label || href)}</a>`;
 
@@ -74,7 +70,6 @@ function rolesHtml(roles: string[]): string {
       <div class="flex flex-wrap">${roles.map(chip).join("")}</div>
     </div>`;
 }
-
 function skillsHtml(skills: string[]): string {
     return `
     <div class="space-y-2">
@@ -82,7 +77,6 @@ function skillsHtml(skills: string[]): string {
       <div class="flex flex-wrap">${skills.map(chip).join("")}</div>
     </div>`;
 }
-
 function contactHtml(c: any): string {
     const lines: string[] = [];
     if (c.email)   lines.push(`${chip("Email")} ${anchor(`mailto:${c.email}`, c.email)}`);
@@ -90,16 +84,13 @@ function contactHtml(c: any): string {
     if (c.github)  lines.push(`${chip("GitHub")} ${anchor(c.github)}`);
     if (c.website) lines.push(`${chip("Website")} ${anchor(c.website)}`);
     if (c.telegram)lines.push(`${chip("Telegram")} ${anchor(c.telegram)}`);
-
-    if (lines.length === 0) return `<div>No contact details provided.</div>`;
-
+    if (!lines.length) return `<div>No contact details provided.</div>`;
     return `
     <div class="space-y-2">
       <div class="text-[13px] uppercase tracking-wide text-white/70">Contact</div>
       <ul class="space-y-1">${lines.map(l => `<li class="text-[14px]">${l}</li>`).join("")}</ul>
     </div>`;
 }
-
 function projectsHtml(projects: any[]): string {
     const items = projects.slice(0, 4).map(p => {
         const title = `<span class="font-medium">${escapeHtml(p.name || "Project")}</span>`;
@@ -113,7 +104,6 @@ function projectsHtml(projects: any[]): string {
       <ul class="list-disc pl-5 space-y-1">${items.join("")}</ul>
     </div>`;
 }
-
 function escapeHtml(s: string) {
     return (s || "")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -122,33 +112,28 @@ function escapeHtml(s: string) {
 }
 function escapeAttr(s: string) { return escapeHtml(s); }
 
-/** ========== Component ========== */
 const PortfolioAssistant: React.FC = () => {
     const [open, setOpen] = useState(false);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [input, setInput] = useState("");
+    const [sending, setSending] = useState(false);
+    const [typingLocal, setTypingLocal] = useState(false);
 
-    const [messages, setMessages]   = useState<ChatMessage[]>([]);
-    const [input, setInput]         = useState("");
-    const [sending, setSending]     = useState(false);     // remote/model typing
-    const [typingLocal, setTypingLocal] = useState(false); // local JSON/FAQ typing animation
-
-    const [profile, setProfile]     = useState<Profile | null>(null);
-    const [faq, setFaq]             = useState<FAQItem[] | null>(null);
-    const [kbReady, setKbReady]     = useState(false);
+    const [profile, setProfile] = useState<Profile | null>(null);
+    const [faq, setFaq] = useState<FAQItem[] | null>(null);
+    const [kbReady, setKbReady] = useState(false);
 
     const [showWelcome, setShowWelcome] = useState(true);
-    const [showTips, setShowTips]       = useState(true);
-
-    // gate to save tokens (can toggle with /chat on|off)
+    const [showTips, setShowTips] = useState(true);
     const [allowGeneral, setAllowGeneral] = useState(ALLOW_GENERAL_CHAT_DEFAULT);
 
     const listRef = useRef<HTMLDivElement>(null);
 
-    // Load profile + FAQ
     useEffect(() => {
         (async () => {
             try {
                 const p = await fetch(PROFILE_URL, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null);
-                const f = await fetch(FAQ_URL,     { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null);
+                const f = await fetch(FAQ_URL, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null);
                 if (p) setProfile(p);
                 if (f) setFaq(f);
                 else if (p?.faqs && Array.isArray(p.faqs)) setFaq(p.faqs);
@@ -156,7 +141,6 @@ const PortfolioAssistant: React.FC = () => {
         })();
     }, []);
 
-    // Restore short history
     useEffect(() => {
         try {
             const saved = localStorage.getItem("portfolio-assistant");
@@ -167,16 +151,13 @@ const PortfolioAssistant: React.FC = () => {
             }
         } catch {}
     }, []);
-    // Persist
     useEffect(() => {
         try { localStorage.setItem("portfolio-assistant", JSON.stringify(messages.slice(-24))); } catch {}
     }, [messages]);
-    // Scroll with new content
     useEffect(() => {
         if (!open) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
     }, [messages, sending, typingLocal, open]);
-    // Close on ESC
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
         window.addEventListener("keydown", onKey);
@@ -184,7 +165,6 @@ const PortfolioAssistant: React.FC = () => {
     }, []);
 
     const profileContext = useMemo(() => serializeProfile(profile || {}), [profile]);
-
     const suggestions = [
         "What roles are you targeting?",
         "List your top skills.",
@@ -192,7 +172,6 @@ const PortfolioAssistant: React.FC = () => {
         "How can I contact you?"
     ];
 
-    /** ---------- Local zero-token answers ---------- */
     const tryFAQ = (q: string): string | null => {
         if (!faq) return null;
         let best = { s: 0, a: "" };
@@ -207,66 +186,50 @@ const PortfolioAssistant: React.FC = () => {
         if (!kbReady) return null;
         const s = normalize(text);
 
-        // greetings -> local, no tokens
         if (/^(hi|hello|hey)\b/.test(s)) {
             return {
                 role: "assistant",
                 html: `
           <div class="space-y-2">
-            <div>Hi! I can help with questions about <b>Sharath’s roles, skills, projects, experience, and contact info</b>.</div>
+            <div>Hi!👋 I can help with questions about <b>Sharath’s roles, skills, projects, experience, and contact info</b>.</div>
             <div class="flex flex-wrap">${suggestions.map(chip).join("")}</div>
           </div>`
             };
         }
-
-        // Roles
         if (/role|position|target/.test(s)) {
             const roles = Array.isArray(profile?.target_roles) ? profile!.target_roles : null;
-            if (roles && roles.length) return { role: "assistant", content: "", html: rolesHtml(roles) };
+            if (roles?.length) return { role: "assistant", html: rolesHtml(roles), content: "" };
             const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
             return null;
         }
-        // Skills
         if (/skill|stack/.test(s)) {
             const skills = Array.isArray(profile?.skills) ? profile!.skills : null;
-            if (skills && skills.length) return { role: "assistant", content: "", html: skillsHtml(skills) };
+            if (skills?.length) return { role: "assistant", html: skillsHtml(skills), content: "" };
             const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
             return null;
         }
-        // Contact
         if (/contact|reach|email|linkedin|github|telegram|website/.test(s)) {
             const c = profile?.contact;
-            if (c) return { role: "assistant", content: "", html: contactHtml(c) };
+            if (c) return { role: "assistant", html: contactHtml(c), content: "" };
             const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
             return null;
         }
-        // Projects
         if (/project|work|recent/.test(s)) {
             const p = profile?.projects;
-            if (Array.isArray(p) && p.length) return { role: "assistant", content: "", html: projectsHtml(p) };
+            if (Array.isArray(p) && p.length) return { role: "assistant", html: projectsHtml(p), content: "" };
             const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
             return null;
         }
-        // Pure FAQ
         const a = tryFAQ(text);
         return a ? { role: "assistant", content: a } : null;
     };
 
-    /** Portfolio intent classifier — to block out-of-scope */
     const isPortfolioIntent = (text: string): boolean => {
         const s = normalize(text);
-        // obvious portfolio topics
-        if (/(role|skills?|projects?|experience|contact|resume|cv|cert|salary|relocat|github|linkedin|portfolio|education|availability|notice|location)\b/.test(s)) {
-            return true;
-        }
-        // mentions of Sharath or "you/your" + career-ish word
-        if (/\b(sharath|you|your)\b/.test(s) &&
-            /(role|skill|project|experience|contact|resume|cv|cert|salary|relocat|github|linkedin|site|portfolio|about)/.test(s)) {
-            return true;
-        }
+        if (/(role|skills?|projects?|experience|contact|resume|cv|cert|salary|relocat|github|linkedin|portfolio|education|availability|notice|location)\b/.test(s)) return true;
+        if (/\b(sharath|you|your)\b/.test(s) && /(role|skill|project|experience|contact|resume|cv|cert|salary|relocat|github|linkedin|site|portfolio|about)/.test(s)) return true;
         return false;
     };
-    /** --------------------------------------------- */
 
     const send = async (override?: string) => {
         const text = (override ?? input).trim();
@@ -274,47 +237,24 @@ const PortfolioAssistant: React.FC = () => {
 
         setShowWelcome(false);
 
-        // Commands
         const cmd = text.trim();
-        if (/^\/?(faq|help)\s*$/i.test(cmd)) {
-            setShowTips(true);
-            setInput("");
-            return;
-        }
-        if (/^\/?clear\s*$/i.test(cmd)) {
-            setMessages([]);
-            setShowWelcome(true);
-            setShowTips(true);
-            setInput("");
-            return;
-        }
-        if (/^\/?chat\s+on\s*$/i.test(cmd)) {
-            setAllowGeneral(true);
-            setMessages(prev => [...prev, { role: "assistant", content: "General chat is now ON for this session. Type /chat off to disable." }]);
-            setInput("");
-            return;
-        }
-        if (/^\/?chat\s+off\s*$/i.test(cmd)) {
-            setAllowGeneral(false);
-            setMessages(prev => [...prev, { role: "assistant", content: "General chat is now OFF. I’ll answer only Sharath-related questions." }]);
-            setInput("");
-            return;
-        }
+        if (/^\/?(faq|help)\s*$/i.test(cmd)) { setShowTips(true); setInput(""); return; }
+        if (/^\/?clear\s*$/i.test(cmd))     { setMessages([]); setShowWelcome(true); setShowTips(true); setInput(""); return; }
+        if (/^\/?chat\s+on\s*$/i.test(cmd)) { setAllowGeneral(true); setMessages(p=>[...p,{role:"assistant",content:"General chat is now ON for this session. Type /chat off to disable."}]); setInput(""); return; }
+        if (/^\/?chat\s+off\s*$/i.test(cmd)){ setAllowGeneral(false); setMessages(p=>[...p,{role:"assistant",content:"General chat is now OFF. I’ll answer only Sharath-related questions."}]); setInput(""); return; }
 
-        // 1) Local rich answer with a natural 1–2s typing animation
         const maybe = localRich(text);
         if (maybe) {
             setMessages(prev => [...prev, { role: "user", content: text }]);
             setShowTips(false);
             setInput("");
             setTypingLocal(true);
-            await sleep(1000 + Math.floor(Math.random() * 1000)); // 1–2 seconds
+            await sleep(1000 + Math.floor(Math.random() * 1000));
             setTypingLocal(false);
             setMessages(prev => [...prev, maybe]);
             return;
         }
 
-        // 2) Guardrails: block out-of-scope if general chat is off
         if (!isPortfolioIntent(text) && !allowGeneral) {
             setMessages(prev => [
                 ...prev,
@@ -329,7 +269,7 @@ const PortfolioAssistant: React.FC = () => {
               <div class="text-[13px] text-white/70">
                 Need general help just once? Type <code>/chat on</code> to enable model replies, then <code>/chat off</code> to disable.
               </div>
-              <div class="text-[13px]">Kubernetes docs: <a class="underline decoration-white/40 hover:decoration-white" href="https://kubernetes.io/docs/home/" target="_blank" rel="noopener noreferrer">kubernetes.io/docs</a></div>
+              <div class="text-[13px]">Docs: <a class="underline decoration-white/40 hover:decoration-white" href="https://kubernetes.io/docs/home/" target="_blank" rel="noopener noreferrer">kubernetes.io/docs</a></div>
             </div>`
                 }
             ]);
@@ -337,7 +277,6 @@ const PortfolioAssistant: React.FC = () => {
             return;
         }
 
-        // 3) Model (allowed)
         const userMessage: ChatMessage = { role: "user", content: text };
         setMessages(prev => [...prev, userMessage]);
         setShowTips(false);
@@ -346,7 +285,6 @@ const PortfolioAssistant: React.FC = () => {
 
         try {
             const trimmed = messages.filter(m => m.role === "user" || m.role === "assistant").slice(-8);
-
             const payload = {
                 model: MODEL,
                 messages: [
@@ -355,12 +293,9 @@ const PortfolioAssistant: React.FC = () => {
                         content:
                             "You are Sharath’s portfolio assistant. If the question is about Sharath’s skills, roles, projects, " +
                             "experience or contact info, rely on the provided context/history and do not invent facts. " +
-                            "Format your answers cleanly. Use short bullet lists when helpful, and include clickable links when present."
+                            "Format answers cleanly; use short lists; include clickable links when present."
                     },
-                    ...(profileContext ? [{
-                        role: "system" as const,
-                        content: "Sharath’s profile (trusted):\n" + profileContext
-                    }] : []),
+                    ...(profileContext ? [{ role: "system" as const, content: "Sharath’s profile (trusted):\n" + profileContext }] : []),
                     ...trimmed,
                     userMessage
                 ],
@@ -368,27 +303,18 @@ const PortfolioAssistant: React.FC = () => {
                 max_tokens: 256
             };
 
-            const res = await fetch(PROXY_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-
+            const res = await fetch(PROXY_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
             const data = await res.json();
 
             if (!res.ok) {
-                const msg =
-                    data?.code === "insufficient_quota"
-                        ? "The assistant is temporarily unavailable (OpenAI quota). Please try again later."
-                        : data?.message || "Something went wrong.";
+                const msg = data?.code === "insufficient_quota"
+                    ? "The assistant is temporarily unavailable (OpenAI quota). Please try again later."
+                    : data?.message || "Something went wrong.";
                 setMessages(prev => [...prev, { role: "assistant", content: msg }]);
                 return;
             }
 
-            const reply =
-                data?.answer ??
-                data?.choices?.[0]?.message?.content ??
-                "Sorry, I couldn’t generate a response.";
+            const reply = data?.answer ?? data?.choices?.[0]?.message?.content ?? "Sorry, I couldn’t generate a response.";
             setMessages(prev => [...prev, { role: "assistant", content: reply }]);
         } catch (e: any) {
             setMessages(prev => [...prev, { role: "assistant", content: `Oops: ${e?.message || String(e)}` }]);
@@ -397,28 +323,18 @@ const PortfolioAssistant: React.FC = () => {
         }
     };
 
-    /** Render helpers */
     const autoLink = (text: string) => {
-        // Small auto-linker for assistant plain text
         const urlRe = /((https?:\/\/|www\.)[^\s)]+)|([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi;
         const parts: React.ReactNode[] = [];
-        let last = 0;
-        let m: RegExpExecArray | null;
+        let last = 0; let m: RegExpExecArray | null;
         while ((m = urlRe.exec(text)) !== null) {
-            const idx = m.index;
-            if (idx > last) parts.push(text.slice(last, idx));
+            const idx = m.index; if (idx > last) parts.push(text.slice(last, idx));
             const raw = m[0];
             if (raw.includes("@") && !raw.startsWith("http")) {
-                parts.push(
-                    <a key={idx} className="underline decoration-white/40 hover:decoration-white"
-                       href={`mailto:${raw}`}>{raw}</a>
-                );
+                parts.push(<a key={idx} className="underline decoration-white/40 hover:decoration-white" href={`mailto:${raw}`}>{raw}</a>);
             } else {
                 const href = raw.startsWith("http") ? raw : `https://${raw}`;
-                parts.push(
-                    <a key={idx} className="underline decoration-white/40 hover:decoration-white"
-                       href={href} target="_blank" rel="noopener noreferrer">{raw}</a>
-                );
+                parts.push(<a key={idx} className="underline decoration-white/40 hover:decoration-white" href={href} target="_blank" rel="noopener noreferrer">{raw}</a>);
             }
             last = idx + raw.length;
         }
@@ -426,27 +342,18 @@ const PortfolioAssistant: React.FC = () => {
         return parts;
     };
 
-    const renderMessage = (m: ChatMessage) => {
-        if (m.html) {
-            return <div className="prose-invert prose-p:my-0 prose-ul:my-0 prose-li:my-0 text-[14px]"
-                        dangerouslySetInnerHTML={{ __html: m.html }} />;
-        }
-        if (m.role === "assistant") {
-            const paras = m.content.split(/\n{2,}/).map((p, i) => (
-                <p key={i} className="my-1">{autoLink(p)}</p>
-            ));
-            return <div className="text-[14px]">{paras}</div>;
-        }
-        return <>{m.content}</>;
-    };
-
     return (
-        <div className="fixed z-[1000] right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] pointer-events-none">
-            {/* FAB */}
+        <div className="fixed inset-0 z-[1000] pointer-events-none">
+            {/* FAB always bottom-right */}
             {!open && (
                 <button
                     onClick={() => setOpen(true)}
-                    className="pointer-events-auto group relative rounded-full p-4 shadow-lg bg-gradient-to-br from-fuchsia-600 to-indigo-600 hover:scale-105 transition-transform"
+                    className="pointer-events-auto fixed
+                     bottom-[max(1rem,env(safe-area-inset-bottom))]
+                     right-[max(1rem,env(safe-area-inset-right))]
+                     group rounded-full p-4 shadow-lg
+                     bg-gradient-to-br from-fuchsia-600 to-indigo-600
+                     hover:scale-105 transition-transform"
                     aria-label="Open chat"
                     title="Chat with me"
                 >
@@ -455,138 +362,164 @@ const PortfolioAssistant: React.FC = () => {
                 </button>
             )}
 
-            {/* Panel — standard size */}
+            {/* Backdrop only on mobile */}
             {open && (
                 <div
-                    className="pointer-events-auto w-[26rem] h-[36rem]
-                     backdrop-blur-xl bg-neutral-900/80 border border-white/10
-                     rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-                >
-                    {/* Header */}
-                    <div className="px-4 py-3 bg-gradient-to-r from-indigo-600/90 to-fuchsia-600/90 text-white">
-                        <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">🤖</div>
-                            <div className="flex-1">
-                                <div className="text-sm font-semibold">Sharath’s AI Assistant</div>
-                                <div className="text-[11px] opacity-85">Ask about skills, projects, and experience</div>
+                    onClick={() => setOpen(false)}
+                    className="pointer-events-auto fixed inset-0 bg-black/40 md:hidden"
+                />
+            )}
+
+            {/* Panel: fixed bottom-right (desktop) / bottom sheet full width (mobile) */}
+            {open && (
+                <div>
+                    <div
+                        className="
+              pointer-events-auto fixed
+              md:right-[max(1.25rem,env(safe-area-inset-right))]
+              md:bottom-[max(1.25rem,env(safe-area-inset-bottom))]
+              md:w-[26rem] md:h-[36rem] md:rounded-2xl
+
+              left-0 right-0 bottom-0 md:left-auto
+              w-[calc(100vw-1rem)] md:w-auto
+              h-[min(80dvh,calc(100dvh-5rem))] md:h-[36rem]
+              rounded-t-2xl md:rounded-2xl
+
+              mx-auto md:mx-0
+              backdrop-blur-xl bg-neutral-900/80 border border-white/10 shadow-2xl overflow-hidden flex flex-col
+            "
+                    >
+                        {/* Header */}
+                        <div className="px-4 py-3 bg-gradient-to-r from-indigo-600/90 to-fuchsia-600/90 text-white">
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">🤖</div>
+                                <div className="flex-1">
+                                    <div className="text-sm font-semibold">Sharath’s AI Assistant</div>
+                                    <div className="text-[11px] opacity-85">Ask about skills, projects, and experience</div>
+                                </div>
+                                <button
+                                    onClick={() => setOpen(false)}
+                                    className="p-1 rounded hover:bg-white/20"
+                                    aria-label="Close chat"
+                                    title="Close"
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                        <path d="M6 6l12 12M18 6l-12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                    </svg>
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setOpen(false)}
-                                className="p-1 rounded hover:bg-white/20"
-                                aria-label="Close chat"
-                                title="Close"
-                            >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                    <path d="M6 6l12 12M18 6l-12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                </svg>
-                            </button>
                         </div>
-                    </div>
 
-                    {/* Messages */}
-                    <div ref={listRef} className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth">
-                        {showWelcome && !messages.length && (
-                            <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
-                                👋 I can answer questions about Sharath’s background. Try a quick prompt:
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                    {suggestions.map((s, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
-                                            className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
-                                        >
-                                            {s}
-                                        </button>
-                                    ))}
+                        {/* Messages */}
+                        <div ref={listRef} className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth">
+                            {showWelcome && !messages.length && (
+                                <div className="text-xs text-white/90 bg:white/5 bg-white/5 border border-white/10 rounded-xl p-3">
+                                    👋 I can answer questions about Sharath’s background. Try a quick prompt:
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
+                                                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
+                                            >
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {messages.map((m, i) => (
-                            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                                <div className={`max-w-[80%] text-sm leading-relaxed px-3 py-2 rounded-2xl border
-                                 ${m.role === "user"
-                                    ? "bg-gradient-to-br from-blue-600/80 to-indigo-600/80 text-white border-white/10"
-                                    : "bg-white/10 text-white/90 border-white/10 backdrop-blur"}`}>
-                                    {renderMessage(m)}
+                            {messages.map((m, i) => (
+                                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                                    <div className={`md:max-w-[80%] max-w-[88%] text-sm leading-relaxed px-3 py-2 rounded-2xl border
+                                  ${m.role === "user"
+                                        ? "bg-gradient-to-br from-blue-600/80 to-indigo-600/80 text-white border-white/10"
+                                        : "bg-white/10 text-white/90 border-white/10 backdrop-blur"}`}>
+                                        {m.html ? (
+                                            <div className="prose-invert prose-p:my-0 prose-ul:my-0 prose-li:my-0 text-[14px]" dangerouslySetInnerHTML={{ __html: m.html }} />
+                                        ) : m.role === "assistant" ? (
+                                            <div className="text-[14px]">
+                                                {m.content.split(/\n{2,}/).map((p, j) => <p key={j} className="my-1">{autoLink(p)}</p>)}
+                                            </div>
+                                        ) : (
+                                            m.content
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
 
-                        {(sending || typingLocal) && (
-                            <div className="flex justify-start">
-                                <div className="px-3 py-2 rounded-2xl bg-white/10 text-white/80 border border-white/10">
-                  <span className="inline-flex items-center gap-1">
-                    <span className="animate-pulse">●</span>
-                    <span className="animate-pulse [animation-delay:150ms]">●</span>
-                    <span className="animate-pulse [animation-delay:300ms]">●</span>
-                  </span>
+                            {(sending || typingLocal) && (
+                                <div className="flex justify-start">
+                                    <div className="px-3 py-2 rounded-2xl bg-white/10 text-white/80 border border-white/10">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="animate-pulse">●</span>
+                      <span className="animate-pulse [animation-delay:150ms]">●</span>
+                      <span className="animate-pulse [animation-delay:300ms]">●</span>
+                    </span>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
 
-                    {/* Composer + FAQ popover */}
-                    <div className="relative p-3 border-t border-white/10 bg-black/40">
-                        {showTips && !showWelcome && (messages.length > 0) && (
-                            <div className="absolute bottom-full left-3 right-3 mb-2 z-20 transition-all duration-200 ease-out
-                              opacity-100 translate-y-0 pointer-events-auto">
-                                <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3 shadow-lg">
-                                    <div className="text-xs text-white/90">
-                                        Quick prompts:
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {suggestions.map((s, i) => (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
-                                                    className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
-                                                >
-                                                    {s}
-                                                </button>
-                                            ))}
+                        {/* Composer */}
+                        <div className="relative p-3 border-t border-white/10 bg-black/40">
+                            {showTips && !showWelcome && messages.length > 0 && (
+                                <div className="absolute bottom-full left-3 right-3 mb-2 z-20">
+                                    <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3 shadow-lg">
+                                        <div className="text-xs text-white/90">
+                                            Quick prompts:
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
+                                                        className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
+                                                    >
+                                                        {s}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                                    placeholder="Ask me anything about Sharath…"
+                                    className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/60"
+                                    disabled={sending || typingLocal}
+                                />
+                                <button
+                                    onClick={() => { setShowWelcome(false); setShowTips(s => !s); }}
+                                    className="shrink-0 p-2 rounded-xl bg-white/10 border border-white/10 text-white hover:bg-white/20"
+                                    title={showTips ? "Hide FAQ" : "Show FAQ"}
+                                    aria-label="Toggle FAQ"
+                                >
+                                    ?
+                                </button>
+                                <button
+                                    onClick={() => send()}
+                                    disabled={sending || typingLocal || !input.trim()}
+                                    className="shrink-0 p-2 rounded-xl bg-gradient-to-br from-fuchsia-600 to-indigo-600 text-white hover:opacity-95 disabled:opacity-50"
+                                    aria-label="Send" title="Send"
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                        <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                        <path d="M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+                                    </svg>
+                                </button>
                             </div>
-                        )}
-
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                                placeholder="Ask me anything about Sharath…"
-                                className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/60"
-                                disabled={sending || typingLocal}
-                            />
-
-                            <button
-                                onClick={() => { setShowWelcome(false); setShowTips(s => !s); }}
-                                className="shrink-0 p-2 rounded-xl bg-white/10 border border-white/10 text-white hover:bg-white/20"
-                                title={showTips ? "Hide FAQ" : "Show FAQ"}
-                                aria-label="Toggle FAQ"
-                            >
-                                ?
-                            </button>
-
-                            <button
-                                onClick={() => send()}
-                                disabled={sending || typingLocal || !input.trim()}
-                                className="shrink-0 p-2 rounded-xl bg-gradient-to-br from-fuchsia-600 to-indigo-600 text-white hover:opacity-95 disabled:opacity-50"
-                                aria-label="Send" title="Send"
-                            >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                    <path d="M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="mt-2 text-[10px] text-white/60">
-                            Press <kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> to send ·
-                            <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/faq</kbd> to show tips ·
-                            <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/clear</kbd> to reset ·
-                            <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/chat on</kbd> enable general Q&A
+                            <div className="mt-2 text-[10px] text-white/60">
+                                Press <kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> to send ·
+                                <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/faq</kbd> to show tips ·
+                                <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/clear</kbd> to reset ·
+                                <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">/chat on</kbd> enable general Q&A
+                            </div>
                         </div>
                     </div>
                 </div>

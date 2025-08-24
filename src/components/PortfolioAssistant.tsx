@@ -6,7 +6,7 @@ import { Certificates } from "./components/Certificates";
 import { Experience } from "./components/Experience";
 import { Projects } from "./components/Projects";
 import { Contact } from "./components/Contact";
-import Chatbot from "./components/Chatbot";
+import PortfolioAssistant from "./components/PortfolioAssistant";
 
 function App() {
     return (
@@ -27,8 +27,7 @@ function App() {
                 </div>
             </footer>
 
-            {/* Render the chat widget ONCE, outside the footer */}
-            <Chatbot />
+            <PortfolioAssistant />
         </div>
     );
 }

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat";
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
-const MODEL       = "gpt-4o-mini"; // client hint (server also defaults)
+const MODEL       = "gpt-4o-mini"; // client hint; server enforces too
 /** ========================= */
 
 type Role = "user" | "assistant" | "system";
@@ -12,16 +12,16 @@ type ChatMessage = { role: Role; content: string };
 type FAQItem = { q: string; a: string };
 type Profile = Record<string, any>;
 
-function normalize(s: string) {
-    return (s || "").toLowerCase().replace(/\s+/g, " ").trim();
-}
-function score(a: string, b: string) {
+const cn = (...s: (string | false | undefined)[]) => s.filter(Boolean).join(" ");
+const normalize = (s: string) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+const score = (a: string, b: string) => {
     const A = new Set(normalize(a).split(/\W+/).filter(Boolean));
     const B = new Set(normalize(b).split(/\W+/).filter(Boolean));
     if (!A.size || !B.size) return 0;
     let inter = 0; for (const w of A) if (B.has(w)) inter++;
     return inter / (A.size + B.size - inter);
-}
+};
+
 function serializeProfile(p: Profile): string {
     if (!p) return "";
     const parts: string[] = [];
@@ -44,56 +44,55 @@ function serializeProfile(p: Profile): string {
     return parts.join("\n");
 }
 
-const Chatbot: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
+const PortfolioAssistant: React.FC = () => {
+    const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [sending, setSending] = useState(false);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [faq, setFaq] = useState<FAQItem[] | null>(null);
-    const panelRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
 
-    // Load profile + FAQ (token-free context + local fallback)
+    // Load profile + FAQ
     useEffect(() => {
         (async () => {
             try {
                 const [p, f] = await Promise.allSettled([
                     fetch(PROFILE_URL, { cache: "no-store" }).then(r => r.ok ? r.json() : null),
-                    fetch(FAQ_URL,     { cache: "no-store" }).then(r => r.ok ? r.json() : null),
+                    fetch(FAQ_URL, { cache: "no-store" }).then(r => r.ok ? r.json() : null),
                 ]);
                 if (p.status === "fulfilled" && p.value) setProfile(p.value);
                 if (f.status === "fulfilled" && f.value) setFaq(f.value);
-            } catch { /* ignore */ }
+            } catch {}
         })();
     }, []);
 
-    // Persist last session (optional, small)
+    // Persist a short history (optional)
     useEffect(() => {
         try {
-            const saved = localStorage.getItem("sharath-chat");
+            const saved = localStorage.getItem("portfolio-assistant");
             if (saved) setMessages(JSON.parse(saved));
-        } catch { /* ignore */ }
+        } catch {}
     }, []);
     useEffect(() => {
-        try { localStorage.setItem("sharath-chat", JSON.stringify(messages.slice(-30))); } catch {}
+        try { localStorage.setItem("portfolio-assistant", JSON.stringify(messages.slice(-24))); } catch {}
     }, [messages]);
 
-    // Auto-scroll
+    // Scroll with new content
     useEffect(() => {
+        if (!open) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-    }, [messages, sending, isOpen]);
+    }, [messages, sending, open]);
 
     // Close on ESC
     useEffect(() => {
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setIsOpen(false); };
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, []);
 
     const profileContext = useMemo(() => serializeProfile(profile || {}), [profile]);
 
-    // Quick suggestions (appear on empty thread)
     const suggestions = [
         "What roles are you targeting?",
         "List your top skills.",
@@ -101,7 +100,7 @@ const Chatbot: React.FC = () => {
         "How can I contact you?"
     ];
 
-    const bestFAQFor = (q: string): FAQItem | null => {
+    const bestFAQ = (q: string): FAQItem | null => {
         if (!faq || !q.trim()) return null;
         let best = { s: 0, item: null as FAQItem | null };
         for (const it of faq) {
@@ -111,12 +110,12 @@ const Chatbot: React.FC = () => {
         return best.s >= 0.3 ? best.item : null;
     };
 
-    const sendMessage = async (override?: string) => {
+    const send = async (override?: string) => {
         const text = (override ?? input).trim();
         if (!text || sending) return;
 
-        // Local FAQ fallback (zero tokens)
-        const maybe = bestFAQFor(text);
+        // local FAQ (no tokens)
+        const maybe = bestFAQ(text);
         if (maybe) {
             setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: maybe.a }]);
             setInput("");
@@ -129,9 +128,7 @@ const Chatbot: React.FC = () => {
         setSending(true);
 
         try {
-            // Keep last few exchanges (token savings); server trims too
             const trimmed = messages.filter(m => m.role === "user" || m.role === "assistant").slice(-8);
-
             const payload = {
                 model: MODEL,
                 messages: [
@@ -139,7 +136,7 @@ const Chatbot: React.FC = () => {
                         role: "system",
                         content:
                             "You are Sharath’s portfolio assistant. Keep answers brief, concrete, and helpful (<=100 words; bullets welcome). " +
-                            "If unrelated, answer in one short line and guide back to Sharath’s skills/projects."
+                            "If unrelated, answer briefly and guide back to Sharath’s skills/projects."
                     },
                     ...(profileContext ? [{
                         role: "system" as const,
@@ -176,18 +173,19 @@ const Chatbot: React.FC = () => {
         }
     };
 
-    const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
     };
 
     return (
-        <div className="fixed bottom-5 right-5 z-50">
+        <div className="fixed z-[1000] right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] pointer-events-none">
             {/* FAB */}
-            {!isOpen && (
+            {!open && (
                 <button
-                    onClick={() => setIsOpen(true)}
-                    className="group relative rounded-full p-4 shadow-lg bg-gradient-to-br from-fuchsia-600 to-indigo-600 hover:scale-105 transition-transform"
+                    onClick={() => setOpen(true)}
+                    className="pointer-events-auto group relative rounded-full p-4 shadow-lg bg-gradient-to-br from-fuchsia-600 to-indigo-600 hover:scale-105 transition-transform"
                     aria-label="Open chat"
+                    title="Chat with me"
                 >
                     <span className="absolute -inset-0.5 rounded-full bg-gradient-to-br from-fuchsia-600 to-indigo-600 blur opacity-50 group-hover:opacity-70" />
                     <span className="relative text-white text-xl">💬</span>
@@ -195,28 +193,22 @@ const Chatbot: React.FC = () => {
             )}
 
             {/* Panel */}
-            {isOpen && (
-                <div
-                    ref={panelRef}
-                    role="dialog"
-                    aria-modal="true"
-                    className="w-[22rem] md:w-96 h-[34rem] backdrop-blur-xl bg-white/10 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-                >
+            {open && (
+                <div className="pointer-events-auto w-[min(92vw,26rem)] max-h-[min(80vh,38rem)] backdrop-blur-xl bg-neutral-900/80 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
                     {/* Header */}
-                    <div className="relative px-4 py-3 bg-gradient-to-r from-indigo-600/90 to-fuchsia-600/90 text-white">
+                    <div className="px-4 py-3 bg-gradient-to-r from-indigo-600/90 to-fuchsia-600/90 text-white">
                         <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">🤖</div>
                             <div className="flex-1">
                                 <div className="text-sm font-semibold">Sharath’s AI Assistant</div>
-                                <div className="text-[11px] opacity-80">Ask about skills, projects, and experience</div>
+                                <div className="text-[11px] opacity-85">Ask about skills, projects, and experience</div>
                             </div>
                             <button
-                                onClick={() => setIsOpen(false)}
+                                onClick={() => setOpen(false)}
                                 className="p-1 rounded hover:bg-white/20"
                                 aria-label="Close chat"
                                 title="Close"
                             >
-                                {/* X icon */}
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                                     <path d="M6 6l12 12M18 6l-12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                                 </svg>
@@ -227,13 +219,13 @@ const Chatbot: React.FC = () => {
                     {/* Messages */}
                     <div ref={listRef} className="flex-1 px-3 py-3 overflow-y-auto space-y-2 scroll-smooth">
                         {messages.length === 0 && (
-                            <div className="text-xs text-white/80 bg-black/30 border border-white/10 rounded-xl p-3">
-                                👋 Hi! I can answer questions about Sharath’s background. Try a quick prompt:
+                            <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
+                                👋 I can answer questions about Sharath’s background. Try a quick prompt:
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    {suggestions.map((s, i) => (
+                                    {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
                                         <button
                                             key={i}
-                                            onClick={() => sendMessage(s)}
+                                            onClick={() => send(s)}
                                             className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
                                         >
                                             {s}
@@ -244,11 +236,13 @@ const Chatbot: React.FC = () => {
                         )}
 
                         {messages.map((m, i) => (
-                            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                                <div className={`max-w-[80%] text-sm leading-relaxed px-3 py-2 rounded-2xl border
-                  ${m.role === "user"
-                                    ? "bg-gradient-to-br from-blue-600/80 to-indigo-600/80 text-white border-white/10"
-                                    : "bg-white/10 text-white/90 border-white/10 backdrop-blur"}`}>
+                            <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+                                <div className={cn(
+                                    "max-w-[80%] text-sm leading-relaxed px-3 py-2 rounded-2xl border",
+                                    m.role === "user"
+                                        ? "bg-gradient-to-br from-blue-600/80 to-indigo-600/80 text-white border-white/10"
+                                        : "bg-white/10 text-white/90 border-white/10 backdrop-blur"
+                                )}>
                                     {m.content}
                                 </div>
                             </div>
@@ -268,33 +262,33 @@ const Chatbot: React.FC = () => {
                     </div>
 
                     {/* Composer */}
-                    <div className="p-3 border-t border-white/10 bg-black/40 backdrop-blur">
+                    <div className="p-3 border-t border-white/10 bg-black/40">
                         <div className="flex items-center gap-2">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={onKeyDown}
+                                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                                 placeholder="Ask me anything about Sharath…"
                                 className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/60"
                                 disabled={sending}
                             />
                             <button
-                                onClick={() => sendMessage()}
+                                onClick={() => send()}
                                 disabled={sending || !input.trim()}
                                 className="shrink-0 p-2 rounded-xl bg-gradient-to-br from-fuchsia-600 to-indigo-600 text-white hover:opacity-95 disabled:opacity-50"
                                 aria-label="Send"
                                 title="Send"
                             >
-                                {/* Send icon */}
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                                     <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                                     <path d="M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
                                 </svg>
                             </button>
                         </div>
-                        <div className="mt-2 text-[10px] text-white/50">
-                            Press <kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> to send · <kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">Esc</kbd> to close
+                        <div className="mt-2 text-[10px] text-white/60">
+                            Press <kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> to send ·
+                            <kbd className="ml-1 px-1 py-0.5 rounded bg-white/10 border border-white/10">Esc</kbd> to close
                         </div>
                     </div>
                 </div>
@@ -303,4 +297,4 @@ const Chatbot: React.FC = () => {
     );
 };
 
-export default Chatbot;
+export default PortfolioAssistant;

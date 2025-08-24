@@ -2,11 +2,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=10";
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=11";
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
-const ALLOW_GENERAL_CHAT_DEFAULT = true;
+const ALLOW_GENERAL_CHAT_DEFAULT = false;
 /** ========================= */
 
 type Role = "user" | "assistant" | "system";
@@ -113,21 +113,30 @@ function escapeHtml(s: string) {
 function escapeAttr(s: string) { return escapeHtml(s); }
 
 const PortfolioAssistant: React.FC = () => {
-    const [open, setOpen] = useState(false);
+    // Visibility + animation state
+    const [open, setOpen] = useState(false);     // mounted/visible
+    const [closing, setClosing] = useState(false); // play closing animation
+
+    // Chat state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [sending, setSending] = useState(false);
     const [typingLocal, setTypingLocal] = useState(false);
 
+    // Knowledge
     const [profile, setProfile] = useState<Profile | null>(null);
     const [faq, setFaq] = useState<FAQItem[] | null>(null);
     const [kbReady, setKbReady] = useState(false);
 
+    // UI flags
     const [showWelcome, setShowWelcome] = useState(true);
     const [showTips, setShowTips] = useState(true);
     const [allowGeneral, setAllowGeneral] = useState(ALLOW_GENERAL_CHAT_DEFAULT);
 
     const listRef = useRef<HTMLDivElement>(null);
+
+    const openChat = () => { setClosing(false); setOpen(true); };
+    const closeChat = () => { setClosing(true); setTimeout(() => { setOpen(false); setClosing(false); }, 260); };
 
     useEffect(() => {
         (async () => {
@@ -155,22 +164,17 @@ const PortfolioAssistant: React.FC = () => {
         try { localStorage.setItem("portfolio-assistant", JSON.stringify(messages.slice(-24))); } catch {}
     }, [messages]);
     useEffect(() => {
-        if (!open) return;
+        if (!(open && !closing)) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-    }, [messages, sending, typingLocal, open]);
+    }, [messages, sending, typingLocal, open, closing]);
     useEffect(() => {
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && open) closeChat(); };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, []);
+    }, [open]);
 
     const profileContext = useMemo(() => serializeProfile(profile || {}), [profile]);
-    const suggestions = [
-        "What roles are you targeting?",
-        "List your top skills.",
-        "Tell me about your recent projects.",
-        "How can I contact you?"
-    ];
+    const suggestions = ["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"];
 
     const tryFAQ = (q: string): string | null => {
         if (!faq) return null;
@@ -189,11 +193,10 @@ const PortfolioAssistant: React.FC = () => {
         if (/^(hi|hello|hey)\b/.test(s)) {
             return {
                 role: "assistant",
-                html: `
-          <div class="space-y-2">
-            <div>Hi!👋 I can help with questions about <b>Sharath’s roles, skills, projects, experience, and contact info</b>.</div>
-            <div class="flex flex-wrap">${suggestions.map(chip).join("")}</div>
-          </div>`
+                html: `<div class="space-y-2">
+          <div>Hi! I can help with questions about <b>Sharath’s roles, skills, projects, experience, and contact info</b>.</div>
+          <div class="flex flex-wrap">${suggestions.map(chip).join("")}</div>
+        </div>`
             };
         }
         if (/role|position|target/.test(s)) {
@@ -249,7 +252,7 @@ const PortfolioAssistant: React.FC = () => {
             setShowTips(false);
             setInput("");
             setTypingLocal(true);
-            await sleep(1000 + Math.floor(Math.random() * 1000));
+            await sleep(1000 + Math.floor(Math.random() * 1000)); // ⚡️typing effect for local answers
             setTypingLocal(false);
             setMessages(prev => [...prev, maybe]);
             return;
@@ -288,13 +291,7 @@ const PortfolioAssistant: React.FC = () => {
             const payload = {
                 model: MODEL,
                 messages: [
-                    {
-                        role: "system",
-                        content:
-                            "You are Sharath’s portfolio assistant. If the question is about Sharath’s skills, roles, projects, " +
-                            "experience or contact info, rely on the provided context/history and do not invent facts. " +
-                            "Format answers cleanly; use short lists; include clickable links when present."
-                    },
+                    { role: "system", content: "You are Sharath’s portfolio assistant. Keep answers factual, concise, nicely formatted; use lists when helpful; linkify URLs/emails." },
                     ...(profileContext ? [{ role: "system" as const, content: "Sharath’s profile (trusted):\n" + profileContext }] : []),
                     ...trimmed,
                     userMessage
@@ -342,18 +339,21 @@ const PortfolioAssistant: React.FC = () => {
         return parts;
     };
 
+    const isShowing = open && !closing;
+
     return (
         <div className="fixed inset-0 z-[1000] pointer-events-none">
-            {/* FAB always bottom-right */}
+            {/* FAB (bottom-right) with fade/scale */}
             {!open && (
                 <button
-                    onClick={() => setOpen(true)}
+                    onClick={openChat}
                     className="pointer-events-auto fixed
                      bottom-[max(1rem,env(safe-area-inset-bottom))]
                      right-[max(1rem,env(safe-area-inset-right))]
                      group rounded-full p-4 shadow-lg
                      bg-gradient-to-br from-fuchsia-600 to-indigo-600
-                     hover:scale-105 transition-transform"
+                     hover:scale-105 transition-transform duration-200 ease-out
+                     animate-[fadeIn_.18s_ease-out]"
                     aria-label="Open chat"
                     title="Chat with me"
                 >
@@ -362,19 +362,20 @@ const PortfolioAssistant: React.FC = () => {
                 </button>
             )}
 
-            {/* Backdrop only on mobile */}
-            {open && (
+            {/* Backdrop on mobile; fade in/out */}
+            {(open || closing) && (
                 <div
-                    onClick={() => setOpen(false)}
-                    className="pointer-events-auto fixed inset-0 bg-black/40 md:hidden"
+                    onClick={closeChat}
+                    className={`pointer-events-auto fixed inset-0 md:hidden transition-opacity duration-200
+                     ${isShowing ? "opacity-100" : "opacity-0"}`}
                 />
             )}
 
-            {/* Panel: fixed bottom-right (desktop) / bottom sheet full width (mobile) */}
-            {open && (
+            {/* Panel with enter/exit transitions */}
+            {(open || closing) && (
                 <div>
                     <div
-                        className="
+                        className={`
               pointer-events-auto fixed
               md:right-[max(1.25rem,env(safe-area-inset-right))]
               md:bottom-[max(1.25rem,env(safe-area-inset-bottom))]
@@ -387,7 +388,12 @@ const PortfolioAssistant: React.FC = () => {
 
               mx-auto md:mx-0
               backdrop-blur-xl bg-neutral-900/80 border border-white/10 shadow-2xl overflow-hidden flex flex-col
-            "
+
+              transition-all duration-250 ease-out
+              ${isShowing
+                            ? "md:opacity-100 md:translate-y-0 md:scale-100 translate-y-0"
+                            : "md:opacity-0   md:translate-y-2 md:scale-[0.98] translate-y-full"}
+            `}
                     >
                         {/* Header */}
                         <div className="px-4 py-3 bg-gradient-to-r from-indigo-600/90 to-fuchsia-600/90 text-white">
@@ -398,8 +404,8 @@ const PortfolioAssistant: React.FC = () => {
                                     <div className="text-[11px] opacity-85">Ask about skills, projects, and experience</div>
                                 </div>
                                 <button
-                                    onClick={() => setOpen(false)}
-                                    className="p-1 rounded hover:bg-white/20"
+                                    onClick={closeChat}
+                                    className="p-1 rounded hover:bg-white/20 transition-colors"
                                     aria-label="Close chat"
                                     title="Close"
                                 >
@@ -413,14 +419,14 @@ const PortfolioAssistant: React.FC = () => {
                         {/* Messages */}
                         <div ref={listRef} className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth">
                             {showWelcome && !messages.length && (
-                                <div className="text-xs text-white/90 bg:white/5 bg-white/5 border border-white/10 rounded-xl p-3">
+                                <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
                                     👋 I can answer questions about Sharath’s background. Try a quick prompt:
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
                                             <button
                                                 key={i}
                                                 onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
-                                                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
+                                                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90 transition"
                                             >
                                                 {s}
                                             </button>
@@ -464,7 +470,7 @@ const PortfolioAssistant: React.FC = () => {
                         {/* Composer */}
                         <div className="relative p-3 border-t border-white/10 bg-black/40">
                             {showTips && !showWelcome && messages.length > 0 && (
-                                <div className="absolute bottom-full left-3 right-3 mb-2 z-20">
+                                <div className="absolute bottom-full left-3 right-3 mb-2 z-20 transition-all duration-200 ease-out">
                                     <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3 shadow-lg">
                                         <div className="text-xs text-white/90">
                                             Quick prompts:
@@ -473,7 +479,7 @@ const PortfolioAssistant: React.FC = () => {
                                                     <button
                                                         key={i}
                                                         onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
-                                                        className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
+                                                        className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90 transition"
                                                     >
                                                         {s}
                                                     </button>
@@ -496,7 +502,7 @@ const PortfolioAssistant: React.FC = () => {
                                 />
                                 <button
                                     onClick={() => { setShowWelcome(false); setShowTips(s => !s); }}
-                                    className="shrink-0 p-2 rounded-xl bg-white/10 border border-white/10 text-white hover:bg-white/20"
+                                    className="shrink-0 p-2 rounded-xl bg-white/10 border border-white/10 text-white hover:bg-white/20 transition"
                                     title={showTips ? "Hide FAQ" : "Show FAQ"}
                                     aria-label="Toggle FAQ"
                                 >
@@ -505,7 +511,7 @@ const PortfolioAssistant: React.FC = () => {
                                 <button
                                     onClick={() => send()}
                                     disabled={sending || typingLocal || !input.trim()}
-                                    className="shrink-0 p-2 rounded-xl bg-gradient-to-br from-fuchsia-600 to-indigo-600 text-white hover:opacity-95 disabled:opacity-50"
+                                    className="shrink-0 p-2 rounded-xl bg-gradient-to-br from-fuchsia-600 to-indigo-600 text-white hover:opacity-95 disabled:opacity-50 transition"
                                     aria-label="Send" title="Send"
                                 >
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

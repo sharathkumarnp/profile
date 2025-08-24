@@ -14,6 +14,10 @@
   "links": {"github":"https://github.com/sharathkumarnp","site":"https://sharathkumarnp.github.io/profile/","linkedin":"https://www.linkedin.com/in/sharathkumarnp/"},
   "faqs": [
     {"q":"What roles is Sharath targeting?","a":"SRE / Platform / DevOps Engineer."},
-    {"q":"Comfortable clouds?","a":"AWS (most), also GCP & Azure."}
+    {"q":"How to contact Sharath?","a":"Use the Contact section on the page or email me (see footer)."},
+    {"q":"What are Sharath's top skills?","a":"Kubernetes, Terraform, GitHub Actions, Prometheus/Grafana, AWS, CI/CD."},
+    {"q":"Is Sharath open to relocation?","a":"Yes, open to relocation within India and internationally."},
+    {"q":"What certifications does Sharath hold?","a":"CKA, AWS Certified Solutions Architect, RHCSE, Gremlin Certified Engineer."},
+    {"q": "What is the salary expectation?", "a": "Open to discussion based on role and responsibilities." }
   ]
 }

@@ -2,18 +2,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=7"; // bump to bust caches after proxy deploys
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=9"; // bump to bust caches after proxy deploys
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
 // default policy: do NOT allow general chat (saves tokens)
-const ALLOW_GENERAL_CHAT_DEFAULT = false;
+const ALLOW_GENERAL_CHAT_DEFAULT = true;
 /** ========================= */
 
 type Role = "user" | "assistant" | "system";
 type ChatMessage = { role: Role; content: string; html?: string }; // html for rich local answers
 type FAQItem = { q: string; a: string };
 type Profile = Record<string, any>;
+
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 const normalize = (s: string) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
 const jaccard = (a: string, b: string) => {
@@ -126,7 +128,8 @@ const PortfolioAssistant: React.FC = () => {
 
     const [messages, setMessages]   = useState<ChatMessage[]>([]);
     const [input, setInput]         = useState("");
-    const [sending, setSending]     = useState(false);
+    const [sending, setSending]     = useState(false);     // remote/model typing
+    const [typingLocal, setTypingLocal] = useState(false); // local JSON/FAQ typing animation
 
     const [profile, setProfile]     = useState<Profile | null>(null);
     const [faq, setFaq]             = useState<FAQItem[] | null>(null);
@@ -172,7 +175,7 @@ const PortfolioAssistant: React.FC = () => {
     useEffect(() => {
         if (!open) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-    }, [messages, sending, open]);
+    }, [messages, sending, typingLocal, open]);
     // Close on ESC
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
@@ -267,7 +270,7 @@ const PortfolioAssistant: React.FC = () => {
 
     const send = async (override?: string) => {
         const text = (override ?? input).trim();
-        if (!text || sending) return;
+        if (!text || sending || typingLocal) return;
 
         setShowWelcome(false);
 
@@ -298,12 +301,16 @@ const PortfolioAssistant: React.FC = () => {
             return;
         }
 
-        // 1) Local rich answer
+        // 1) Local rich answer with a natural 1–2s typing animation
         const maybe = localRich(text);
         if (maybe) {
-            setMessages(prev => [...prev, { role: "user", content: text }, maybe]);
+            setMessages(prev => [...prev, { role: "user", content: text }]);
             setShowTips(false);
             setInput("");
+            setTypingLocal(true);
+            await sleep(1000 + Math.floor(Math.random() * 1000)); // 1–2 seconds
+            setTypingLocal(false);
+            setMessages(prev => [...prev, maybe]);
             return;
         }
 
@@ -498,7 +505,7 @@ const PortfolioAssistant: React.FC = () => {
                         {messages.map((m, i) => (
                             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                                 <div className={`max-w-[80%] text-sm leading-relaxed px-3 py-2 rounded-2xl border
-                  ${m.role === "user"
+                                 ${m.role === "user"
                                     ? "bg-gradient-to-br from-blue-600/80 to-indigo-600/80 text-white border-white/10"
                                     : "bg-white/10 text-white/90 border-white/10 backdrop-blur"}`}>
                                     {renderMessage(m)}
@@ -506,7 +513,7 @@ const PortfolioAssistant: React.FC = () => {
                             </div>
                         ))}
 
-                        {sending && (
+                        {(sending || typingLocal) && (
                             <div className="flex justify-start">
                                 <div className="px-3 py-2 rounded-2xl bg-white/10 text-white/80 border border-white/10">
                   <span className="inline-flex items-center gap-1">
@@ -551,7 +558,7 @@ const PortfolioAssistant: React.FC = () => {
                                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                                 placeholder="Ask me anything about Sharath…"
                                 className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/60"
-                                disabled={sending}
+                                disabled={sending || typingLocal}
                             />
 
                             <button
@@ -565,7 +572,7 @@ const PortfolioAssistant: React.FC = () => {
 
                             <button
                                 onClick={() => send()}
-                                disabled={sending || !input.trim()}
+                                disabled={sending || typingLocal || !input.trim()}
                                 className="shrink-0 p-2 rounded-xl bg-gradient-to-br from-fuchsia-600 to-indigo-600 text-white hover:opacity-95 disabled:opacity-50"
                                 aria-label="Send" title="Send"
                             >

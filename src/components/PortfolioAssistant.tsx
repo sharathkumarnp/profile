@@ -2,14 +2,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=5"; // bump v to bust caches when you redeploy proxy
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=6"; // bump v when redeploying proxy
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
 /** ========================= */
 
 type Role = "user" | "assistant" | "system";
-type ChatMessage = { role: Role; content: string };
+type ChatMessage = { role: Role; content: string; html?: string }; // html for rich local answers
 type FAQItem = { q: string; a: string };
 type Profile = Record<string, any>;
 
@@ -56,6 +56,71 @@ function serializeProfile(p: Profile): string {
     return parts.join("\n");
 }
 
+/** ========== Rich HTML builders for local answers ========== */
+const chip = (text: string) =>
+    `<span class="inline-block rounded-full px-2.5 py-1 text-[12px] bg-white/10 border border-white/10 mr-1 mb-1">${escapeHtml(text)}</span>`;
+
+const anchor = (href: string, label?: string) =>
+    `<a class="underline decoration-white/40 hover:decoration-white" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label || href)}</a>`;
+
+function rolesHtml(roles: string[]): string {
+    return `
+    <div class="space-y-2">
+      <div class="text-[13px] uppercase tracking-wide text-white/70">Target Roles</div>
+      <div class="flex flex-wrap">${roles.map(chip).join("")}</div>
+    </div>`;
+}
+
+function skillsHtml(skills: string[]): string {
+    return `
+    <div class="space-y-2">
+      <div class="text-[13px] uppercase tracking-wide text-white/70">Top Skills</div>
+      <div class="flex flex-wrap">${skills.map(chip).join("")}</div>
+    </div>`;
+}
+
+function contactHtml(c: any): string {
+    const lines: string[] = [];
+    if (c.email)   lines.push(`${chip("Email")} ${anchor(`mailto:${c.email}`, c.email)}`);
+    if (c.linkedin)lines.push(`${chip("LinkedIn")} ${anchor(c.linkedin)}`);
+    if (c.github)  lines.push(`${chip("GitHub")} ${anchor(c.github)}`);
+    if (c.website) lines.push(`${chip("Website")} ${anchor(c.website)}`);
+    if (c.telegram)lines.push(`${chip("Telegram")} ${anchor(c.telegram)}`);
+
+    if (lines.length === 0) return `<div>No contact details provided.</div>`;
+
+    return `
+    <div class="space-y-2">
+      <div class="text-[13px] uppercase tracking-wide text-white/70">Contact</div>
+      <ul class="space-y-1">${lines.map(l => `<li class="text-[14px]">${l}</li>`).join("")}</ul>
+    </div>`;
+}
+
+function projectsHtml(projects: any[]): string {
+    const items = projects.slice(0, 4).map(p => {
+        const title = `<span class="font-medium">${escapeHtml(p.name || "Project")}</span>`;
+        const stack  = (p.stack && p.stack.length) ? `<span class="text-white/70"> — ${escapeHtml(p.stack.join(", "))}</span>` : "";
+        const link   = p.link ? ` · ${anchor(p.link, "Link")}` : "";
+        return `<li class="text-[14px] leading-relaxed">${title}${stack}${link}</li>`;
+    });
+    return `
+    <div class="space-y-2">
+      <div class="text-[13px] uppercase tracking-wide text-white/70">Recent Projects</div>
+      <ul class="list-disc pl-5 space-y-1">${items.join("")}</ul>
+    </div>`;
+}
+
+function escapeHtml(s: string) {
+    return (s || "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+function escapeAttr(s: string) {
+    return escapeHtml(s);
+}
+
+/** ========== Component ========== */
 const PortfolioAssistant: React.FC = () => {
     const [open, setOpen] = useState(false);
 
@@ -65,14 +130,14 @@ const PortfolioAssistant: React.FC = () => {
 
     const [profile, setProfile]     = useState<Profile | null>(null);
     const [faq, setFaq]             = useState<FAQItem[] | null>(null);
-    const [kbReady, setKbReady]     = useState(false);             // only use local answers after load
+    const [kbReady, setKbReady]     = useState(false);
 
-    const [showWelcome, setShowWelcome] = useState(true);          // big intro card (top)
-    const [showTips, setShowTips]       = useState(true);          // popover above input
+    const [showWelcome, setShowWelcome] = useState(true);
+    const [showTips, setShowTips]       = useState(true);
 
     const listRef = useRef<HTMLDivElement>(null);
 
-    // Load profile + FAQ (fallback to embedded faqs if separate file is missing)
+    // Load profile + FAQ (fallback to embedded faqs if faq.json missing)
     useEffect(() => {
         (async () => {
             try {
@@ -81,9 +146,7 @@ const PortfolioAssistant: React.FC = () => {
                 if (p) setProfile(p);
                 if (f) setFaq(f);
                 else if (p?.faqs && Array.isArray(p.faqs)) setFaq(p.faqs);
-            } finally {
-                setKbReady(true);
-            }
+            } finally { setKbReady(true); }
         })();
     }, []);
 
@@ -118,7 +181,6 @@ const PortfolioAssistant: React.FC = () => {
     }, []);
 
     const profileContext = useMemo(() => serializeProfile(profile || {}), [profile]);
-
     const suggestions = [
         "What roles are you targeting?",
         "List your top skills.",
@@ -126,7 +188,7 @@ const PortfolioAssistant: React.FC = () => {
         "How can I contact you?"
     ];
 
-    // ---- Local zero-token answers (only if kbReady) ----
+    /** ---------- Local zero-token answers ---------- */
     const tryFAQ = (q: string): string | null => {
         if (!faq) return null;
         let best = { s: 0, a: "" };
@@ -137,70 +199,69 @@ const PortfolioAssistant: React.FC = () => {
         return best.s >= 0.28 ? best.a : null;
     };
 
-    const rolesFromProfile = (): string | null => {
-        const roles = Array.isArray(profile?.target_roles) ? profile!.target_roles : null;
-        return roles && roles.length ? `Sharath is targeting roles: ${roles.join(", ")}.` : null;
-    };
-    const skillsFromProfile = (): string | null => {
-        const s = profile?.skills; return Array.isArray(s) && s.length ? `Top skills: ${s.slice(0, 16).join(", ")}.` : null;
-    };
-    const contactFromProfile = (): string | null => {
-        const c = profile?.contact || {};
-        const bits = [
-            c.email ? `Email: ${c.email}` : null,
-            c.linkedin ? `LinkedIn: ${c.linkedin}` : null,
-            c.github ? `GitHub: ${c.github}` : null,
-            c.website ? `Website: ${c.website}` : null
-        ].filter(Boolean);
-        return bits.length ? `You can reach Sharath via ${bits.join(" • ")}.` : null;
-    };
-    const projectsFromProfile = (): string | null => {
-        const p = profile?.projects;
-        if (Array.isArray(p) && p.length) {
-            const names = p.slice(0, 3).map((x: any) => x.name).filter(Boolean);
-            if (names.length) return `Recent projects: ${names.join(", ")}.`;
-        }
-        return null;
-    };
-
-    const localAnswer = (text: string): string | null => {
-        if (!kbReady) return null; // don't try until we loaded files
+    const localRich = (text: string): ChatMessage | null => {
+        if (!kbReady) return null;
         const s = normalize(text);
-        if (/role|position|target/.test(s)) return rolesFromProfile() || tryFAQ(text);
-        if (/skill|stack/.test(s))          return skillsFromProfile() || tryFAQ(text);
-        if (/contact|reach|email|linkedin|github|telegram|website/.test(s))
-            return contactFromProfile() || tryFAQ(text);
-        if (/project|work|recent/.test(s))  return projectsFromProfile() || tryFAQ(text);
-        return tryFAQ(text);
+
+        // Roles
+        if (/role|position|target/.test(s)) {
+            const roles = Array.isArray(profile?.target_roles) ? profile!.target_roles : null;
+            if (roles && roles.length) return { role: "assistant", content: "", html: rolesHtml(roles) };
+            const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
+            return null;
+        }
+        // Skills
+        if (/skill|stack/.test(s)) {
+            const skills = Array.isArray(profile?.skills) ? profile!.skills : null;
+            if (skills && skills.length) return { role: "assistant", content: "", html: skillsHtml(skills) };
+            const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
+            return null;
+        }
+        // Contact
+        if (/contact|reach|email|linkedin|github|telegram|website/.test(s)) {
+            const c = profile?.contact;
+            if (c) return { role: "assistant", content: "", html: contactHtml(c) };
+            const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
+            return null;
+        }
+        // Projects
+        if (/project|work|recent/.test(s)) {
+            const p = profile?.projects;
+            if (Array.isArray(p) && p.length) return { role: "assistant", content: "", html: projectsHtml(p) };
+            const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
+            return null;
+        }
+        // Pure FAQ
+        const a = tryFAQ(text);
+        return a ? { role: "assistant", content: a } : null;
     };
-    // ----------------------------------------------------
+    /** --------------------------------------------- */
 
     const send = async (override?: string) => {
         const text = (override ?? input).trim();
         if (!text || sending) return;
 
-        // any interaction hides the welcome card
         setShowWelcome(false);
 
         // Commands
         const cmd = text.trim();
         if (/^\/?(faq|help)\s*$/i.test(cmd)) {
-            setShowTips(true);  // show popover (but not the welcome)
+            setShowTips(true);
             setInput("");
             return;
         }
         if (/^\/?clear\s*$/i.test(cmd)) {
             setMessages([]);
-            setShowWelcome(true); // show intro again on clear
+            setShowWelcome(true);
             setShowTips(true);
             setInput("");
             return;
         }
 
-        // 1) Try local (only if loaded); otherwise go straight to model
-        const maybe = localAnswer(text);
+        // 1) Local rich answer
+        const maybe = localRich(text);
         if (maybe) {
-            setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: maybe }]);
+            setMessages(prev => [...prev, { role: "user", content: text }, maybe]);
             setShowTips(false);
             setInput("");
             return;
@@ -221,11 +282,10 @@ const PortfolioAssistant: React.FC = () => {
                 messages: [
                     {
                         role: "system",
-                        // Use context for Sharath questions; otherwise be helpful.
                         content:
                             "You are Sharath’s portfolio assistant. If the question is about Sharath’s skills, roles, projects, " +
                             "experience or contact info, rely on the provided context/history and do not invent facts. " +
-                            "For general or casual chat, answer helpfully."
+                            "Format your answers cleanly. Use short bullet lists when helpful, and include clickable links when present."
                     },
                     ...(profileContext ? [{
                         role: "system" as const,
@@ -234,7 +294,7 @@ const PortfolioAssistant: React.FC = () => {
                     ...trimmed,
                     userMessage
                 ],
-                temperature: 0.3,
+                temperature: 0.35,
                 max_tokens: 256
             };
 
@@ -267,6 +327,50 @@ const PortfolioAssistant: React.FC = () => {
         }
     };
 
+    /** Render helpers */
+    const autoLink = (text: string) => {
+        // Very small auto-linker for assistant plain text
+        const urlRe = /((https?:\/\/|www\.)[^\s)]+)|([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi;
+        const parts: React.ReactNode[] = [];
+        let last = 0;
+        let m: RegExpExecArray | null;
+        while ((m = urlRe.exec(text)) !== null) {
+            const idx = m.index;
+            if (idx > last) parts.push(text.slice(last, idx));
+            const raw = m[0];
+            if (raw.includes("@") && !raw.startsWith("http")) {
+                parts.push(
+                    <a key={idx} className="underline decoration-white/40 hover:decoration-white"
+                       href={`mailto:${raw}`}>{raw}</a>
+                );
+            } else {
+                const href = raw.startsWith("http") ? raw : `https://${raw}`;
+                parts.push(
+                    <a key={idx} className="underline decoration-white/40 hover:decoration-white"
+                       href={href} target="_blank" rel="noopener noreferrer">{raw}</a>
+                );
+            }
+            last = idx + raw.length;
+        }
+        if (last < text.length) parts.push(text.slice(last));
+        return parts;
+    };
+
+    const renderMessage = (m: ChatMessage) => {
+        if (m.html) {
+            return <div className="prose-invert prose-p:my-0 prose-ul:my-0 prose-li:my-0 text-[14px]"
+                        dangerouslySetInnerHTML={{ __html: m.html }} />;
+        }
+        if (m.role === "assistant") {
+            // Split into paragraphs, auto-link URLs/emails
+            const paras = m.content.split(/\n{2,}/).map((p, i) => (
+                <p key={i} className="my-1">{autoLink(p)}</p>
+            ));
+            return <div className="text-[14px]">{paras}</div>;
+        }
+        return <>{m.content}</>;
+    };
+
     return (
         <div className="fixed z-[1000] right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] pointer-events-none">
             {/* FAB */}
@@ -282,7 +386,7 @@ const PortfolioAssistant: React.FC = () => {
                 </button>
             )}
 
-            {/* Panel — standard size for consistency */}
+            {/* Panel — standard size */}
             {open && (
                 <div
                     className="pointer-events-auto w-[26rem] h-[36rem]
@@ -311,15 +415,12 @@ const PortfolioAssistant: React.FC = () => {
                     </div>
 
                     {/* Messages */}
-                    <div
-                        ref={listRef}
-                        className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth"
-                    >
+                    <div ref={listRef} className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth">
                         {showWelcome && !messages.length && (
                             <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
                                 👋 I can answer questions about Sharath’s background. Try a quick prompt:
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
+                                    {suggestions.map((s, i) => (
                                         <button
                                             key={i}
                                             onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
@@ -338,7 +439,7 @@ const PortfolioAssistant: React.FC = () => {
                   ${m.role === "user"
                                     ? "bg-gradient-to-br from-blue-600/80 to-indigo-600/80 text-white border-white/10"
                                     : "bg-white/10 text-white/90 border-white/10 backdrop-blur"}`}>
-                                    {m.content}
+                                    {renderMessage(m)}
                                 </div>
                             </div>
                         ))}
@@ -356,19 +457,16 @@ const PortfolioAssistant: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Composer + FAQ popover (animated) */}
+                    {/* Composer + FAQ popover */}
                     <div className="relative p-3 border-t border-white/10 bg-black/40">
-                        {/* Popover anchored above the input — only show when not showing the welcome card */}
                         {showTips && !showWelcome && (messages.length > 0) && (
-                            <div
-                                className="absolute bottom-full left-3 right-3 mb-2 z-20 transition-all duration-200 ease-out
-                           opacity-100 translate-y-0 pointer-events-auto"
-                            >
+                            <div className="absolute bottom-full left-3 right-3 mb-2 z-20 transition-all duration-200 ease-out
+                              opacity-100 translate-y-0 pointer-events-auto">
                                 <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-3 shadow-lg">
                                     <div className="text-xs text-white/90">
                                         Quick prompts:
                                         <div className="mt-2 flex flex-wrap gap-2">
-                                            {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
+                                            {suggestions.map((s, i) => (
                                                 <button
                                                     key={i}
                                                     onClick={() => { setShowWelcome(false); setShowTips(false); send(s); }}
@@ -394,7 +492,6 @@ const PortfolioAssistant: React.FC = () => {
                                 disabled={sending}
                             />
 
-                            {/* FAQ toggle */}
                             <button
                                 onClick={() => { setShowWelcome(false); setShowTips(s => !s); }}
                                 className="shrink-0 p-2 rounded-xl bg-white/10 border border-white/10 text-white hover:bg-white/20"
@@ -404,7 +501,6 @@ const PortfolioAssistant: React.FC = () => {
                                 ?
                             </button>
 
-                            {/* Send */}
                             <button
                                 onClick={() => send()}
                                 disabled={sending || !input.trim()}

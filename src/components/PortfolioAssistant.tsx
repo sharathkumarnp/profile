@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=11";
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=12";
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
@@ -113,22 +113,18 @@ function escapeHtml(s: string) {
 function escapeAttr(s: string) { return escapeHtml(s); }
 
 const PortfolioAssistant: React.FC = () => {
-    // Visibility + animation state
-    const [open, setOpen] = useState(false);     // mounted/visible
-    const [closing, setClosing] = useState(false); // play closing animation
+    const [open, setOpen] = useState(false);
+    const [closing, setClosing] = useState(false);
 
-    // Chat state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [sending, setSending] = useState(false);
     const [typingLocal, setTypingLocal] = useState(false);
 
-    // Knowledge
     const [profile, setProfile] = useState<Profile | null>(null);
     const [faq, setFaq] = useState<FAQItem[] | null>(null);
     const [kbReady, setKbReady] = useState(false);
 
-    // UI flags
     const [showWelcome, setShowWelcome] = useState(true);
     const [showTips, setShowTips] = useState(true);
     const [allowGeneral, setAllowGeneral] = useState(ALLOW_GENERAL_CHAT_DEFAULT);
@@ -160,9 +156,7 @@ const PortfolioAssistant: React.FC = () => {
             }
         } catch {}
     }, []);
-    useEffect(() => {
-        try { localStorage.setItem("portfolio-assistant", JSON.stringify(messages.slice(-24))); } catch {}
-    }, [messages]);
+    useEffect(() => { try { localStorage.setItem("portfolio-assistant", JSON.stringify(messages.slice(-24))); } catch {} }, [messages]);
     useEffect(() => {
         if (!(open && !closing)) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -252,7 +246,7 @@ const PortfolioAssistant: React.FC = () => {
             setShowTips(false);
             setInput("");
             setTypingLocal(true);
-            await sleep(1000 + Math.floor(Math.random() * 1000)); // ⚡️typing effect for local answers
+            await sleep(1000 + Math.floor(Math.random() * 1000)); // typing effect for local answers
             setTypingLocal(false);
             setMessages(prev => [...prev, maybe]);
             return;
@@ -343,7 +337,7 @@ const PortfolioAssistant: React.FC = () => {
 
     return (
         <div className="fixed inset-0 z-[1000] pointer-events-none">
-            {/* FAB (bottom-right) with fade/scale */}
+            {/* FAB */}
             {!open && (
                 <button
                     onClick={openChat}
@@ -362,7 +356,7 @@ const PortfolioAssistant: React.FC = () => {
                 </button>
             )}
 
-            {/* Backdrop on mobile; fade in/out */}
+            {/* Backdrop on mobile */}
             {(open || closing) && (
                 <div
                     onClick={closeChat}
@@ -371,22 +365,25 @@ const PortfolioAssistant: React.FC = () => {
                 />
             )}
 
-            {/* Panel with enter/exit transitions */}
+            {/* Panel (fixed size; stable) */}
             {(open || closing) && (
                 <div>
                     <div
                         className={`
-              pointer-events-auto fixed
+              pointer-events-auto fixed will-change-transform
+
+              /* Desktop anchor bottom-right with FIXED SIZE */
               md:right-[max(1.25rem,env(safe-area-inset-right))]
               md:bottom-[max(1.25rem,env(safe-area-inset-bottom))]
-              md:w-[26rem] md:h-[36rem] md:rounded-2xl
+              md:w-[26rem] md:h-[36rem] md:rounded-2xl md:left-auto md:mx-0
 
-              left-0 right-0 bottom-0 md:left-auto
-              w-[calc(100vw-1rem)] md:w-auto
-              h-[min(80dvh,calc(100dvh-5rem))] md:h-[36rem]
-              rounded-t-2xl md:rounded-2xl
+              /* Mobile bottom sheet — full width but bounded */
+              left-0 right-0 bottom-0
+              w-[calc(100vw-1rem)] max-w-[28rem]
+              h-[min(82dvh,calc(100dvh-5rem))]
+              rounded-t-2xl
 
-              mx-auto md:mx-0
+              mx-auto
               backdrop-blur-xl bg-neutral-900/80 border border-white/10 shadow-2xl overflow-hidden flex flex-col
 
               transition-all duration-250 ease-out
@@ -417,7 +414,10 @@ const PortfolioAssistant: React.FC = () => {
                         </div>
 
                         {/* Messages */}
-                        <div ref={listRef} className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth">
+                        <div
+                            ref={listRef}
+                            className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth"
+                        >
                             {showWelcome && !messages.length && (
                                 <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
                                     👋 I can answer questions about Sharath’s background. Try a quick prompt:
@@ -437,14 +437,19 @@ const PortfolioAssistant: React.FC = () => {
 
                             {messages.map((m, i) => (
                                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                                    <div className={`md:max-w-[80%] max-w-[88%] text-sm leading-relaxed px-3 py-2 rounded-2xl border
-                                  ${m.role === "user"
-                                        ? "bg-gradient-to-br from-blue-600/80 to-indigo-600/80 text-white border-white/10"
-                                        : "bg-white/10 text-white/90 border-white/10 backdrop-blur"}`}>
+                                    <div
+                                        className={`md:max-w-[80%] max-w-[88%] text-sm leading-relaxed px-3 py-2 rounded-2xl border break-words
+                      ${m.role === "user"
+                                            ? "bg-gradient-to-br from-blue-600/80 to-indigo-600/80 text-white border-white/10"
+                                            : "bg-white/10 text-white/90 border-white/10 backdrop-blur"}`}
+                                    >
                                         {m.html ? (
-                                            <div className="prose-invert prose-p:my-0 prose-ul:my-0 prose-li:my-0 text-[14px]" dangerouslySetInnerHTML={{ __html: m.html }} />
+                                            <div
+                                                className="prose-invert prose-p:my-0 prose-ul:my-0 prose-li:my-0 text-[14px] break-words"
+                                                dangerouslySetInnerHTML={{ __html: m.html }}
+                                            />
                                         ) : m.role === "assistant" ? (
-                                            <div className="text-[14px]">
+                                            <div className="text-[14px] break-words">
                                                 {m.content.split(/\n{2,}/).map((p, j) => <p key={j} className="my-1">{autoLink(p)}</p>)}
                                             </div>
                                         ) : (

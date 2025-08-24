@@ -1,3 +1,4 @@
+// src/components/PortfolioAssistant.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
@@ -64,7 +65,7 @@ const PortfolioAssistant: React.FC = () => {
                 ]);
                 if (p.status === "fulfilled" && p.value) setProfile(p.value);
                 if (f.status === "fulfilled" && f.value) setFaq(f.value);
-            } catch {/* ignore */}
+            } catch {}
         })();
     }, []);
 
@@ -77,7 +78,7 @@ const PortfolioAssistant: React.FC = () => {
                 setMessages(arr);
                 if (arr.length > 0) setShowTips(false);
             }
-        } catch {/* ignore */}
+        } catch {}
     }, []);
     // Persist
     useEffect(() => {
@@ -121,6 +122,7 @@ const PortfolioAssistant: React.FC = () => {
     const rolesFromProfile = (): string | null => {
         const roles = Array.isArray(profile?.target_roles) ? profile!.target_roles : null;
         return roles && roles.length ? `Sharath is targeting roles: ${roles.join(", ")}.` : null;
+        // If you prefer: return roles ? roles.join(", ") : null;
     };
 
     const send = async (override?: string) => {
@@ -128,12 +130,13 @@ const PortfolioAssistant: React.FC = () => {
         if (!text || sending) return;
 
         // Commands
-        if (text === "/faq" || text === "/help") {
+        const cmd = text.trim();
+        if (/^\/?(faq|help)\s*$/i.test(cmd)) {
             setShowTips(true);
             setInput("");
             return;
         }
-        if (text === "/clear") {
+        if (/^\/?clear\s*$/i.test(cmd)) {
             setMessages([]);
             setShowTips(true);
             setInput("");
@@ -226,7 +229,11 @@ const PortfolioAssistant: React.FC = () => {
 
             {/* Panel */}
             {open && (
-                <div className="pointer-events-auto w-[min(92vw,26rem)] max-h-[min(80vh,38rem)] backdrop-blur-xl bg-neutral-900/80 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                <div
+                    className="pointer-events-auto w-[min(92vw,26rem)] max-h-[min(80vh,38rem)]
+                     backdrop-blur-xl bg-neutral-900/80 border border-white/10
+                     rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                >
                     {/* Header */}
                     <div className="px-4 py-3 bg-gradient-to-r from-indigo-600/90 to-fuchsia-600/90 text-white">
                         <div className="flex items-center gap-3">
@@ -249,12 +256,15 @@ const PortfolioAssistant: React.FC = () => {
                     </div>
 
                     {/* Messages */}
-                    <div ref={listRef} className="flex-1 px-3 py-3 overflow-y-auto space-y-2 scroll-smooth">
+                    <div
+                        ref={listRef}
+                        className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth"
+                    >
                         {showTips && (
                             <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
                                 👋 I can answer questions about Sharath’s background. Try a quick prompt:
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    {suggestions.map((s, i) => (
+                                    {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
                                         <button
                                             key={i}
                                             onClick={() => { setShowTips(false); send(s); }}

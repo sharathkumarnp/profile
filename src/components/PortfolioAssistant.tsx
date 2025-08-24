@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** ========= CONFIG ========= */
-const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat";
+const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=3"; // add ?v=2 if you want to bust server cache
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
@@ -26,21 +26,31 @@ function serializeProfile(p: Profile): string {
     if (!p) return "";
     const parts: string[] = [];
     if (p.name || p.title) parts.push(`Name: ${p.name || ""} | Title: ${p.title || ""}`);
-    if (Array.isArray(p.target_roles)) parts.push(`Roles: ${p.target_roles.join(", ")}`);
+    if (Array.isArray(p.target_roles) && p.target_roles.length) parts.push(`Roles: ${p.target_roles.join(", ")}`);
     if (p.summary) parts.push(`Summary: ${p.summary}`);
-    if (Array.isArray(p.skills)) parts.push(`Skills: ${p.skills.join(", ")}`);
-    if (Array.isArray(p.certs)) parts.push(`Certs: ${p.certs.join(", ")}`);
-    if (Array.isArray(p.experience)) {
+    if (Array.isArray(p.skills) && p.skills.length) parts.push(`Skills: ${p.skills.join(", ")}`);
+    if (Array.isArray(p.certs) && p.certs.length) parts.push(`Certs: ${p.certs.join(", ")}`);
+    if (Array.isArray(p.experience) && p.experience.length) {
         const exp = p.experience.slice(0, 3).map((e: any) =>
             `${e.role} @ ${e.company} (${e.years}) — ${(e.highlights||[]).slice(0,2).join("; ")}`
         );
         parts.push(`Experience: ${exp.join(" | ")}`);
     }
-    if (Array.isArray(p.projects)) {
+    if (Array.isArray(p.projects) && p.projects.length) {
         const proj = p.projects.slice(0, 4).map((x: any) =>
             `${x.name}: ${(x.stack||[]).join("/")} — ${(x.highlights||[])[0]||""}`
         );
         parts.push(`Projects: ${proj.join(" | ")}`);
+    }
+    if (p.contact) {
+        const c = p.contact;
+        const bits = [
+            c.email ? `Email: ${c.email}` : null,
+            c.linkedin ? `LinkedIn: ${c.linkedin}` : null,
+            c.github ? `GitHub: ${c.github}` : null,
+            c.telegram ? `Telegram: ${c.telegram}` : null,
+        ].filter(Boolean);
+        if (bits.length) parts.push(`Contact: ${bits.join(" • ")}`);
     }
     return parts.join("\n");
 }
@@ -55,7 +65,7 @@ const PortfolioAssistant: React.FC = () => {
     const [showTips, setShowTips] = useState(true); // FAQ/suggestions panel
     const listRef = useRef<HTMLDivElement>(null);
 
-    // Load profile + FAQ (token-free context)
+    // Load profile + FAQ
     useEffect(() => {
         (async () => {
             try {
@@ -107,7 +117,7 @@ const PortfolioAssistant: React.FC = () => {
         "How can I contact you?"
     ];
 
-    // Local zero-token FAQ lookup
+    // ---- Local zero-token answers (stop hallucinations) ----
     const tryFAQ = (q: string): string | null => {
         if (!faq) return null;
         let best = { s: 0, a: "" };
@@ -118,12 +128,46 @@ const PortfolioAssistant: React.FC = () => {
         return best.s >= 0.28 ? best.a : null;
     };
 
-    // Speedy local roles short-circuit (also enforced on server)
     const rolesFromProfile = (): string | null => {
         const roles = Array.isArray(profile?.target_roles) ? profile!.target_roles : null;
         return roles && roles.length ? `Sharath is targeting roles: ${roles.join(", ")}.` : null;
-        // If you prefer: return roles ? roles.join(", ") : null;
     };
+
+    const skillsFromProfile = (): string | null => {
+        const s = profile?.skills;
+        return Array.isArray(s) && s.length ? `Top skills: ${s.slice(0, 12).join(", ")}.` : null;
+    };
+
+    const contactFromProfile = (): string | null => {
+        const c = profile?.contact || {};
+        const bits = [
+            c.email ? `Email: ${c.email}` : null,
+            c.linkedin ? `LinkedIn: ${c.linkedin}` : null,
+            c.github ? `GitHub: ${c.github}` : null,
+            c.telegram ? `Telegram: ${c.telegram}` : null,
+        ].filter(Boolean);
+        return bits.length ? `You can reach Sharath via ${bits.join(" • ")}.` : null;
+    };
+
+    const projectsFromProfile = (): string | null => {
+        const p = profile?.projects;
+        if (Array.isArray(p) && p.length) {
+            const names = p.slice(0, 3).map((x: any) => x.name).filter(Boolean);
+            if (names.length) return `Recent projects: ${names.join(", ")}.`;
+        }
+        return null;
+    };
+
+    const localAnswer = (text: string): string | null => {
+        const s = normalize(text);
+        // commands handled elsewhere
+        if (/role|position|target/.test(s)) return rolesFromProfile() || tryFAQ(text);
+        if (/skill|stack/.test(s)) return skillsFromProfile() || tryFAQ(text);
+        if (/contact|reach|email|linkedin|github|telegram/.test(s)) return contactFromProfile() || tryFAQ(text);
+        if (/project|work|recent/.test(s)) return projectsFromProfile() || tryFAQ(text);
+        return tryFAQ(text);
+    };
+    // --------------------------------------------------------
 
     const send = async (override?: string) => {
         const text = (override ?? input).trim();
@@ -143,11 +187,10 @@ const PortfolioAssistant: React.FC = () => {
             return;
         }
 
-        // Local FAQ / roles (no tokens)
-        const localRoles = /role|position|target/i.test(text) ? (rolesFromProfile() || tryFAQ(text)) : null;
-        const localFaq = localRoles || tryFAQ(text);
-        if (localFaq) {
-            setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: localFaq }]);
+        // Local answer first (no tokens)
+        const maybeLocal = localAnswer(text);
+        if (maybeLocal) {
+            setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: maybeLocal }]);
             setShowTips(false);
             setInput("");
             return;
@@ -170,7 +213,7 @@ const PortfolioAssistant: React.FC = () => {
                         role: "system",
                         content:
                             "You are Sharath’s portfolio assistant. Keep answers brief, concrete (<=100 words; bullets welcome). " +
-                            "Use only the provided context/history. If unknown, reply: “I don’t know yet.”"
+                            "Use only the provided context/history. If unknown, reply exactly: “I don’t know yet.”"
                     },
                     ...(profileContext ? [{
                         role: "system" as const,
@@ -188,7 +231,6 @@ const PortfolioAssistant: React.FC = () => {
                 body: JSON.stringify(payload),
             });
 
-            // Proxy may return either {choices: ...} (OpenAI pass-through) or {answer: "..."} (fallback)
             const data = await res.json();
 
             if (!res.ok) {
@@ -260,11 +302,11 @@ const PortfolioAssistant: React.FC = () => {
                         ref={listRef}
                         className="min-h-0 flex-1 px-3 py-3 overflow-y-auto overscroll-contain space-y-2 scroll-smooth"
                     >
-                        {showTips && (
+                        {!messages.length && showTips && (
                             <div className="text-xs text-white/90 bg-white/5 border border-white/10 rounded-xl p-3">
                                 👋 I can answer questions about Sharath’s background. Try a quick prompt:
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    {["What roles are you targeting?","List your top skills.","Tell me about your recent projects.","How can I contact you?"].map((s, i) => (
+                                    {suggestions.map((s, i) => (
                                         <button
                                             key={i}
                                             onClick={() => { setShowTips(false); send(s); }}
@@ -301,8 +343,29 @@ const PortfolioAssistant: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Composer */}
-                    <div className="p-3 border-t border-white/10 bg-black/40">
+                    {/* Composer with FAQ overlay near input */}
+                    <div className="relative p-3 border-t border-white/10 bg-black/40">
+                        {/* Overlayed tips above the input */}
+                        {showTips && (
+                            <div className="absolute -top-2 right-3 left-3 translate-y-[-100%] z-10
+                              bg-white/5 border border-white/10 rounded-xl p-3">
+                                <div className="text-xs text-white/90">
+                                    Quick prompts:
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {suggestions.map((s, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => { setShowTips(false); send(s); }}
+                                                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white/90"
+                                            >
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-2">
                             <input
                                 type="text"
@@ -310,7 +373,7 @@ const PortfolioAssistant: React.FC = () => {
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                                 placeholder="Ask me anything about Sharath…"
-                                className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/60"
+                                className="flex-1 px-3 py-2 rounded-xl bg.white/10 bg-white/10 border border-white/10 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/60"
                                 disabled={sending}
                             />
 

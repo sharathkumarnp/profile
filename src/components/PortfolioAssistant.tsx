@@ -7,6 +7,9 @@ const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
 const ALLOW_GENERAL_CHAT_DEFAULT = false;
+/** Fallback resume (used if not present in profile.json) */
+const DEFAULT_RESUME_URL =
+    "https://sharathkumarnp.github.io/profile/resume/Sharath_Kumar_Resume.pdf";
 /** ========================= */
 
 type Role = "user" | "assistant" | "system";
@@ -34,14 +37,12 @@ function serializeProfile(p: Profile): string {
     if (Array.isArray(p.certs) && p.certs.length) parts.push(`Certs: ${p.certs.join(", ")}`);
     if (Array.isArray(p.experience) && p.experience.length) {
         const exp = p.experience.slice(0, 3).map((e: any) =>
-            `${e.role} @ ${e.company} (${e.years}) — ${(e.highlights||[]).slice(0,2).join("; ")}`
-        );
+            `${e.role} @ ${e.company} (${e.years}) — ${(e.highlights||[]).slice(0,2).join("; ")}`);
         parts.push(`Experience: ${exp.join(" | ")}`);
     }
     if (Array.isArray(p.projects) && p.projects.length) {
         const proj = p.projects.slice(0, 4).map((x: any) =>
-            `${x.name}: ${(x.stack||[]).join("/")} — ${(x.highlights||[])[0]||""}`
-        );
+            `${x.name}: ${(x.stack||[]).join("/")} — ${(x.highlights||[])[0]||""}`);
         parts.push(`Projects: ${proj.join(" | ")}`);
     }
     if (p.contact) {
@@ -55,6 +56,7 @@ function serializeProfile(p: Profile): string {
         ].filter(Boolean);
         if (bits.length) parts.push(`Contact: ${bits.join(" • ")}`);
     }
+    // note: we don’t add resume line to system context to avoid hallucinated details
     return parts.join("\n");
 }
 
@@ -65,17 +67,17 @@ const anchor = (href: string, label?: string) =>
 
 function rolesHtml(roles: string[]): string {
     return `
-    <div class="space-y-2">
-      <div class="text-[13px] uppercase tracking-wide text-white/70">Target Roles</div>
-      <div class="flex flex-wrap">${roles.map(chip).join("")}</div>
-    </div>`;
+  <div class="space-y-2">
+    <div class="text-[13px] uppercase tracking-wide text-white/70">Target Roles</div>
+    <div class="flex flex-wrap">${roles.map(chip).join("")}</div>
+  </div>`;
 }
 function skillsHtml(skills: string[]): string {
     return `
-    <div class="space-y-2">
-      <div class="text-[13px] uppercase tracking-wide text-white/70">Top Skills</div>
-      <div class="flex flex-wrap">${skills.map(chip).join("")}</div>
-    </div>`;
+  <div class="space-y-2">
+    <div class="text-[13px] uppercase tracking-wide text-white/70">Top Skills</div>
+    <div class="flex flex-wrap">${skills.map(chip).join("")}</div>
+  </div>`;
 }
 function contactHtml(c: any): string {
     const lines: string[] = [];
@@ -86,10 +88,10 @@ function contactHtml(c: any): string {
     if (c.telegram)lines.push(`${chip("Telegram")} ${anchor(c.telegram)}`);
     if (!lines.length) return `<div>No contact details provided.</div>`;
     return `
-    <div class="space-y-2">
-      <div class="text-[13px] uppercase tracking-wide text-white/70">Contact</div>
-      <ul class="space-y-1">${lines.map(l => `<li class="text-[14px]">${l}</li>`).join("")}</ul>
-    </div>`;
+  <div class="space-y-2">
+    <div class="text-[13px] uppercase tracking-wide text-white/70">Contact</div>
+    <ul class="space-y-1">${lines.map(l => `<li class="text-[14px]">${l}</li>`).join("")}</ul>
+  </div>`;
 }
 function projectsHtml(projects: any[]): string {
     const items = projects.slice(0, 4).map(p => {
@@ -99,11 +101,41 @@ function projectsHtml(projects: any[]): string {
         return `<li class="text-[14px] leading-relaxed">${title}${stack}${link}</li>`;
     });
     return `
-    <div class="space-y-2">
-      <div class="text-[13px] uppercase tracking-wide text-white/70">Recent Projects</div>
-      <ul class="list-disc pl-5 space-y-1">${items.join("")}</ul>
-    </div>`;
+  <div class="space-y-2">
+    <div class="text-[13px] uppercase tracking-wide text-white/70">Recent Projects</div>
+    <ul class="list-disc pl-5 space-y-1">${items.join("")}</ul>
+  </div>`;
 }
+/** Resume card (zero-token) */
+function resumeHtml(url: string, lastUpdated?: string, sizeMb?: number): string {
+    const meta: string[] = [];
+    if (lastUpdated) meta.push(`Updated ${escapeHtml(lastUpdated)}`);
+    if (sizeMb) meta.push(`${sizeMb.toFixed(1)} MB`);
+    return `
+  <div class="space-y-2">
+    <div class="text-[13px] uppercase tracking-wide text-white/70">Resume</div>
+    <div class="text-[14px] text-white/90">
+      Download Sharath’s latest resume using the button below.
+      ${meta.length ? `<div class="mt-1 text-white/60 text-[12px]">${meta.join(" · ")}</div>` : ""}
+    </div>
+    <div class="flex gap-2 mt-2">
+      <a href="${escapeAttr(url)}" download
+         class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-fuchsia-600/90 hover:bg-fuchsia-600 text-white">
+         ⬇️ Download PDF
+      </a>
+      <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer"
+         class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white">
+         👁️ View online
+      </a>
+    </div>
+  </div>`;
+}
+function getResumeURL(p?: any): { url: string; last?: string; size?: number } | null {
+    const url = p?.resume?.url || p?.resume_url || p?.links?.resume || DEFAULT_RESUME_URL;
+    if (!url) return null;
+    return { url, last: p?.resume?.last_updated, size: p?.resume?.size_mb };
+}
+
 function escapeHtml(s: string) {
     return (s || "")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -217,6 +249,13 @@ const PortfolioAssistant: React.FC = () => {
             const a = tryFAQ(text); if (a) return { role: "assistant", content: a };
             return null;
         }
+        // Resume/CV — serve locally with a download button (no tokens)
+        if (/\b(resume|cv|curriculum vitae|download\s+resume)\b/.test(s)) {
+            const r = getResumeURL(profile || {});
+            if (r?.url) return { role: "assistant", content: "", html: resumeHtml(r.url, r.last, r.size) };
+            return { role: "assistant", content: "I couldn’t find a resume link right now." };
+        }
+
         const a = tryFAQ(text);
         return a ? { role: "assistant", content: a } : null;
     };
@@ -259,15 +298,15 @@ const PortfolioAssistant: React.FC = () => {
                 {
                     role: "assistant",
                     html: `
-            <div class="space-y-2">
-              <div><b>Out of scope:</b> This assistant is for questions about <b>Sharath</b> (roles, skills, projects, experience, contact).</div>
-              <div class="text-[13px] text-white/70">To save tokens, general tech Q&A is disabled.</div>
-              <div class="flex flex-wrap">${suggestions.map(chip).join("")}</div>
-              <div class="text-[13px] text-white/70">
-                Need general help just once? Type <code>/chat on</code> to enable model replies, then <code>/chat off</code> to disable.
-              </div>
-              <div class="text-[13px]">Docs: <a class="underline decoration-white/40 hover:decoration-white" href="https://kubernetes.io/docs/home/" target="_blank" rel="noopener noreferrer">kubernetes.io/docs</a></div>
-            </div>`
+          <div class="space-y-2">
+            <div><b>Out of scope:</b> This assistant is for questions about <b>Sharath</b> (roles, skills, projects, experience, contact).</div>
+            <div class="text-[13px] text-white/70">To save tokens, general tech Q&A is disabled.</div>
+            <div class="flex flex-wrap">${suggestions.map(chip).join("")}</div>
+            <div class="text-[13px] text-white/70">
+              Need general help just once? Type <code>/chat on</code> to enable model replies, then <code>/chat off</code> to disable.
+            </div>
+            <div class="text-[13px]">Docs: <a class="underline decoration-white/40 hover:decoration-white" href="https://kubernetes.io/docs/home/" target="_blank" rel="noopener noreferrer">kubernetes.io/docs</a></div>
+          </div>`
                 }
             ]);
             setInput("");
@@ -342,12 +381,12 @@ const PortfolioAssistant: React.FC = () => {
                 <button
                     onClick={openChat}
                     className="pointer-events-auto fixed
-                     bottom-[max(1rem,env(safe-area-inset-bottom))]
-                     right-[max(1rem,env(safe-area-inset-right))]
-                     group rounded-full p-4 shadow-lg
-                     bg-gradient-to-br from-fuchsia-600 to-indigo-600
-                     hover:scale-105 transition-transform duration-200 ease-out
-                     animate-[fadeIn_.18s_ease-out]"
+            bottom-[max(1rem,env(safe-area-inset-bottom))]
+            right-[max(1rem,env(safe-area-inset-right))]
+            group rounded-full p-4 shadow-lg
+            bg-gradient-to-br from-fuchsia-600 to-indigo-600
+            hover:scale-105 transition-transform duration-200 ease-out
+            animate-[fadeIn_.18s_ease-out]"
                     aria-label="Open chat"
                     title="Chat with me"
                 >
@@ -361,23 +400,23 @@ const PortfolioAssistant: React.FC = () => {
                 <div
                     onClick={closeChat}
                     className={`pointer-events-auto fixed inset-0 md:hidden transition-opacity duration-200
-                     ${isShowing ? "opacity-100" : "opacity-0"}`}
+            ${isShowing ? "opacity-100" : "opacity-0"}`}
                 />
             )}
 
-            {/* Panel (fixed size; stable) */}
+            {/* Panel */}
             {(open || closing) && (
                 <div>
                     <div
                         className={`
               pointer-events-auto fixed will-change-transform
 
-              /* Desktop anchor bottom-right with FIXED SIZE */
+              /* Desktop bottom-right with fixed size */
               md:right-[max(1.25rem,env(safe-area-inset-right))]
               md:bottom-[max(1.25rem,env(safe-area-inset-bottom))]
               md:w-[26rem] md:h-[36rem] md:rounded-2xl md:left-auto md:mx-0
 
-              /* Mobile bottom sheet — full width but bounded */
+              /* Mobile bottom sheet */
               left-0 right-0 bottom-0
               w-[calc(100vw-1rem)] max-w-[28rem]
               h-[min(82dvh,calc(100dvh-5rem))]

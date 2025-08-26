@@ -6,7 +6,7 @@ const PROXY_URL  = "https://gpt-proxy-pink.vercel.app/api/chat?v=12";
 const PROFILE_URL = "https://sharathkumarnp.github.io/profile/ai/profile.json";
 const FAQ_URL     = "https://sharathkumarnp.github.io/profile/ai/faq.json";
 const MODEL       = "gpt-4o-mini";
-const ALLOW_GENERAL_CHAT_DEFAULT = true;
+const ALLOW_GENERAL_CHAT_DEFAULT = false;
 /** ========================= */
 
 type Role = "user" | "assistant" | "system";

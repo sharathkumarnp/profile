@@ -305,7 +305,7 @@ const PortfolioAssistant: React.FC = () => {
             <div class="text-[13px] text-white/70">
               Need general help just once? Type <code>/chat on</code> to enable model replies, then <code>/chat off</code> to disable.
             </div>
-            <div class="text-[13px]">Docs: <a class="underline decoration-white/40 hover:decoration-white" href="https://www.linkedin.com/in/sharathkumarnp/" target="_blank" rel="noopener noreferrer">Sharath's LinkendIn</a></div>
+            <div class="text-[13px]"><a class="underline decoration-white/40 hover:decoration-white" href="https://www.linkedin.com/in/sharathkumarnp/" target="_blank" rel="noopener noreferrer">Sharath's LinkendIn</a></div>
           </div>`
                 }
             ]);

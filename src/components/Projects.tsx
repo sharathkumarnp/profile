@@ -3,12 +3,12 @@ import { Github, ExternalLink } from "lucide-react";
 
 const projects = [
   {
-    title: "Status Page Update using Jenkins",
+    title: "Eclipse24",
     description:
-        "Developed a Jenkins pipeline to automate the update of a status page, ensuring real-time updates and improved communication during incidents and also scheduling the maintenance updates.",
-    tags: ["Jenkins", "Python", "Status Page", "Atlassian", "API"],
-    code: "#",
-    demo: "#",
+        "Automated server decomissioning utility tool built in kafka to clean-up the servers which are unused and non-active",
+    tags: ["Slack", "Python", "Kafka", "Atlassian", "API", "Postgres"],
+    code: "https://github.com/sharathkumarnp/Eclipse24",
+    demo: "https://github.com/sharathkumarnp/Eclipse24",
   },
   {
     title: "OpsGenie Stackstorm Integration",
@@ -25,6 +25,14 @@ const projects = [
     tags: ["Jenkins", "Docker", "CI/CD", "Python"],
     code: "#",
     demo: "#",
+  },
+  {
+    title: "JSK Sales Web Application",
+    description:
+        "Developed a full-stack web application for JSK Sales using React for the frontend and Node.js for the backend, enabling efficient sales management and customer tracking.",
+    tags: ["React", "Node.js", "Firebase", "Vercel"],
+    code: "https://github.com/sharathkumarnp/jsk-sales-app",
+    demo: "https://jsk-sales-app.vercel.app/",
   },
 ];
 
